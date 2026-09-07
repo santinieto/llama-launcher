@@ -2,648 +2,328 @@
 
 Aplicación de escritorio para administrar y ejecutar modelos de inteligencia artificial localmente mediante [`llama.cpp`](https://github.com/ggml-org/llama.cpp).
 
-El objetivo del proyecto es centralizar la gestión de modelos locales y evitar la necesidad de mantener múltiples archivos `.bat` con configuraciones específicas para cada modelo.
+Centraliza la gestión de modelos GGUF, evita múltiples `.bat` y permite lanzar `llama-server` con la configuración correcta desde una GUI.
 
-La aplicación detectará automáticamente los modelos disponibles, cargará su configuración y permitirá iniciarlos mediante una interfaz gráfica.
-
----
-
-## 🎯 Objetivo
-
-Actualmente, cada modelo utilizado con `llama.cpp` puede requerir una configuración diferente:
-
-* Modelo utilizado.
-* Quantización.
-* Número de capas descargadas a GPU.
-* Context size.
-* Batch size.
-* Número de CPU threads.
-* Número de GPU layers.
-* Configuración MoE.
-* Modelos draft para MTP.
-* Encoders de visión.
-* Chat templates.
-* Parámetros de sampling.
-* Puerto del servidor.
-* Otros argumentos específicos de `llama-server`.
-
-La configuración suele terminar distribuida entre diferentes scripts `.bat`, haciendo más difícil:
-
-* Agregar nuevos modelos.
-* Recordar qué configuración utiliza cada modelo.
-* Cambiar parámetros.
-* Comparar configuraciones.
-* Iniciar modelos rápidamente.
-* Mantener una configuración reproducible.
-
-Este proyecto busca resolverlo mediante una aplicación centralizada.
+La aplicación detecta automáticamente los modelos disponibles en `models/`, lee su `model.yaml` (y variantes) y construye el comando de `llama-server`.
 
 ---
 
-## 🧠 Concepto
+## Objetivo
 
-La aplicación funcionará como un **administrador local de modelos para `llama.cpp`**.
+Cada modelo de `llama.cpp` puede requerir configuración distinta:
 
-La idea principal es:
+* Archivo y cuantización (`Q4_K_M`, `IQ1_M`, `Q2_K_XL`, etc.)
+* `gpu_layers`, `context_size`, `batch_size`, `micro_batch`
+* MoE (`n_expert_used`), `ncmoe`
+* MTP / draft model (`spec_type: draft-mtp`, `draft_n_max`)
+* Vision encoder (`mmproj`)
+* Chat template / `system_prompt`
+* Sampling (`temperature`, `top_p`, `top_k`, `min_p`)
+* Puerto `host:port`
+
+Sin un gestor, esa configuración queda dispersa en `.bat` y es difícil de mantener. Este proyecto la centraliza en YAML por modelo.
+
+---
+
+## Características actuales
+
+Implementado en `app/`:
+
+* **Auto-discovery** recursivo en `models/` (`app/core/model_manager.py:62`). Soporta:
+  * `model.yaml` único (legacy)
+  * Múltiples `model.<variant>.yaml` / `model.<cuantización>.yaml` en la misma carpeta → una sola tarjeta con dropdown de variantes (`app/core/model_manager.py:89`)
+  * `gguf/`, `gguf/mtp/`, `gguf/nomtp/` con detección de `mains` vs `drafts` vs `mmproj` (`model_manager.py:262`)
+* **Per-variante YAML + perfiles**: cada cuantización puede tener su propio YAML (`variant_yaml_paths` `model_manager.py:180`). Además, botón `⚙` por variante permite guardar overrides sin editar manualmente (`save_variant_profile` `model_manager.py:398`).
+* **MTP auto-detectado**: si existe draft o `nextn_predict_layers`, se envía `--spec-type draft-mtp` y `--model-draft` solo cuando corresponde (`app/core/command_builder.py:112`). Evita el error `failed to create MTP context` de variantes `nomtp`.
+* **Backend por modelo**: `backend.llama_server_path` permite usar un `llama-server.exe` distinto por modelo (`command_builder.py:11`, `main_window.py:267`, `model_manager.py:505`).
+* **GUI PySide6** (`app/gui/main_window.py:30`):
+  * Header con `Settings` (rutas globales) y `↻ Recargar Configs` (F5) (`main_window.py:100`)
+  * Panel izquierdo: tarjetas de modelos con dropdown de variantes, estado `READY/ERROR/RUNNING`, `MTP: on/off`, botón `Launch/Stop`, `⚙` perfil y `Runtime`
+  * Panel derecho: `Terminal — Logs` en vivo (`LogViewer` `app/gui/log_viewer.py:1`) + indicador `LIVE/RUNNING/ERROR`
+  * Status bar con `VRAM/RAM` y contador `X configurados • Y nuevos • MTP en Z`
+* **Validación** antes de lanzar: existe `model_path`, `llama-server.exe`, puerto libre, `draft` y `vision` (`model_manager.py:598`).
+* **Construcción de comando** completa: `--n-gpu-layers`, `-c`, `-b`, `-ub`, `--cache-type-k/v`, `--spec-type`, `--cache-ram`, `-ncmoe`, `sampling`, `--host/--port`, `--reasoning`, `--chat-template-file` si hay `system_prompt` (`command_builder.py:44`).
+* **Gestión de proceso**: `start/stop`, captura `stdout/stderr` a `logs/<modelo>/YYYY-MM-DD_HH-MM-SS.log`, detección `model loaded` y `server listening` (`app/core/process_manager.py`).
+
+---
+
+## Estructura del proyecto
 
 ```text
-                 ┌──────────────────────┐
-                 │   Local LLM Manager   │
-                 │       GUI            │
-                 └──────────┬───────────┘
-                            │
-              ┌─────────────┴─────────────┐
-              │                           │
-       Detectar modelos              Leer configuración
-              │                           │
-              ▼                           ▼
-       ┌──────────────┐            ┌──────────────┐
-       │   models/    │            │  model.yaml  │
-       └──────────────┘            └──────────────┘
-              │                           │
-              └─────────────┬─────────────┘
-                            ▼
-                    Construir comando
-                            │
-                            ▼
-                    llama-server.exe
-                            │
-                            ▼
-                     Modelo ejecutándose
-```
-
-La aplicación no debería necesitar conocer previamente qué modelos existen.
-
-**Agregar un modelo debería consistir simplemente en agregar sus archivos y su configuración.**
-
----
-
-# 📁 Estructura del proyecto
-
-Una estructura inicial propuesta sería:
-
-```text
-local-llm-manager/
-│
-├── README.md
-├── requirements.txt
-├── pyproject.toml
-│
+.
 ├── app/
-│   ├── main.py
-│   │
-│   ├── gui/
-│   │   ├── main_window.py
-│   │   ├── model_view.py
-│   │   └── settings_view.py
-│   │
+│   ├── main.py                 # entry point, resuelve config/app.yaml
 │   ├── core/
-│   │   ├── model_manager.py
-│   │   ├── config_loader.py
-│   │   ├── command_builder.py
-│   │   └── process_manager.py
-│   │
+│   │   ├── model_manager.py    # discovery + variantes + health
+│   │   ├── config_loader.py    # YAML loader/validator
+│   │   ├── command_builder.py  # YAML → args llama-server
+│   │   └── process_manager.py  # spawn/monitor llama-server
+│   ├── gui/
+│   │   ├── main_window.py      # ventana principal
+│   │   ├── model_view.py       # ModelCard + VariantProfileDialog
+│   │   ├── log_viewer.py
+│   │   └── settings_view.py    # diálogo rutas globales
 │   └── models/
 │       └── model_definition.py
-│
-├── models/
-│   ├── qwen3.5-9b/
-│   │   ├── model.gguf
-│   │   └── model.yaml
-│   │
-│   ├── gemma-4-e4b/
-│   │   ├── model.gguf
-│   │   └── model.yaml
-│   │
+├── models/                     # NO se sube *.gguf (225GB) - ver .gitignore
+│   ├── Qwen3.5-32B-A3B/
+│   │   ├── model.yaml                          # base
+│   │   ├── model.mtp_Qwen3.6-35B-A3B-UD-IQ1_M.yaml  # per-variante
+│   │   ├── model.mtp_...IQ3_S.yaml
+│   │   └── gguf/
+│   │       ├── mtp/Qwen3.6-35B-...IQ1_M.gguf
+│   │       ├── mtp/...Q4_K_XL.gguf
+│   │       └── nomtp/...Q2_K_XL.gguf
+│   ├── Qwen3.8-27B/
 │   └── ...
-│
-├── llama.cpp/
-│   ├── llama-server.exe
-│   ├── ...
-│   └── ...
-│
-├── scripts/
-│   ├── install.bat
-│   ├── update-llama.cpp.bat
-│   └── ...
-│
-├── logs/
-│   └── ...
-│
-└── config/
-    └── app.yaml
+├── llama.cpp/                  # binarios NO incluidos (ver Instalación)
+│   └── llama-server.exe
+├── config/
+│   ├── app.yaml                # rutas relativas (para repo)
+│   └── app.local.yaml          # tu local con rutas absolutas (ignorado)
+├── logs/                       # generado en ejecución (ignorado)
+├── build.py                    # PyInstaller
+├── pyproject.toml
+└── requirements.txt
 ```
 
-> La carpeta `llama.cpp/` debería considerarse una dependencia externa del proyecto. Idealmente, la aplicación debería permitir especificar dónde se encuentra el ejecutable en lugar de asumir una ubicación fija.
+> `llama.cpp/` es dependencia externa. La app permite configurar la ruta en `config/app.yaml` o por modelo en `backend.llama_server_path`.
 
 ---
 
-# 🤖 Modelos
+## Modelos
 
-Cada modelo tendrá su propia carpeta.
-
-Ejemplo:
+Cada modelo vive en su carpeta. Ejemplo real:
 
 ```text
-models/
-└── qwen3.5-9b/
-    ├── qwen3.5-9b-Q4_K_M.gguf
-    └── model.yaml
+models/Qwen3.5-32B-A3B/
+  gguf/mtp/Qwen3.6-35B-A3B-UD-IQ1_M.gguf
+  gguf/mtp/Qwen3.6-35B-A3B-UD-Q4_K_XL.gguf
+  gguf/nomtp/Qwen3.6-35B-A3B-UD-Q2_K_XL.gguf
+  model.yaml
+  model.mtp_Qwen3.6-35B-A3B-UD-IQ1_M.yaml
+  model.mtp_Qwen3.6-35B-A3B-UD-Q4_K_XL.yaml
 ```
 
-Esto permite que toda la información necesaria para ejecutar el modelo permanezca junto al modelo.
+La app agrupa todos los `model*.yaml` de la carpeta en una sola tarjeta. El dropdown lista `available_main_files` y el YAML seleccionado es el efectivo.
+
+Agregar un modelo:
+1. Crear `models/mi-modelo/`
+2. Copiar `.gguf` (en `gguf/` o directo)
+3. Copiar/crear `model.yaml` (o dejar que la GUI lo cree para carpetas sin config → tarjeta "sin configurar")
+4. Abrir la app → aparece automáticamente → `Launch`
 
 ---
 
-# ⚙️ Configuración de modelos
+## Configuración de modelos
 
-Se propone utilizar **YAML** para las configuraciones.
-
-La razón principal es que resulta más legible y editable manualmente que JSON, especialmente cuando la configuración contiene muchos parámetros opcionales.
-
-Ejemplo:
+Formato YAML (ejemplo real de `models/Qwen3.5-32B-A3B/model.mtp_Qwen3.6-35B-A3B-UD-IQ1_M.yaml`):
 
 ```yaml
-name: Qwen 3.5 9B
-description: Qwen 3.5 9B local model
-
+name: Qwen 3.5 35B A3B (Qwen3.6-35B-A3B-UD-IQ1_M)
+description: Qwen 3.5 35B A3B
 backend:
   type: llama.cpp
-
+  # llama_server_path: D:/custom/llama-server.exe  # opcional por modelo
 model:
-  file: qwen3.5-9b-Q4_K_M.gguf
-
+  file: mtp/Qwen3.6-35B-A3B-UD-IQ1_M.gguf
+  format: gguf
 server:
   host: 127.0.0.1
-  port: 8080
-
-hardware:
-  gpu_layers: all
-  context_size: 24576
-  batch_size: 2048
-  threads: 8
-
-sampling:
-  temperature: 0.7
-  top_p: 0.8
-
-capabilities:
-  vision: false
-  tool_calling: true
-
-advanced:
-  flash_attention: true
-```
-
-La aplicación utilizará esta información para construir automáticamente el comando correspondiente.
-
-Por ejemplo:
-
-```text
-llama-server.exe
-    --model models/qwen3.5-9b/qwen3.5-9b-Q4_K_M.gguf
-    --host 127.0.0.1
-    --port 8080
-    --ctx-size 24576
-    --batch-size 2048
-    --n-gpu-layers all
-    --threads 8
-    --temp 0.7
-    --top-p 0.8
-    --flash-attn
-```
-
----
-
-# 👁️ Modelos con Vision
-
-El proyecto debería contemplar modelos que utilicen componentes adicionales para procesamiento visual.
-
-Por ejemplo:
-
-```yaml
-capabilities:
-  vision: true
-
-vision:
-  encoder: mmproj-model-f16.gguf
-```
-
-La aplicación deberá poder detectar que un modelo requiere un encoder y agregar automáticamente los argumentos correspondientes al comando de `llama-server`.
-
-Esto permitiría tener configuraciones como:
-
-```text
-models/
-└── qwen-vl/
-    ├── model.gguf
-    ├── mmproj-model.gguf
-    └── model.yaml
-```
-
----
-
-# 📦 Formatos de modelos
-
-El proyecto estará inicialmente orientado a modelos compatibles con `llama.cpp`.
-
-El formato principal será:
-
-```text
-GGUF
-```
-
-Sin embargo, la arquitectura debería evitar asumir que todos los modelos utilizan exclusivamente GGUF.
-
-La aplicación podría representar el formato mediante:
-
-```yaml
-model:
-  format: gguf
-  file: model.gguf
-```
-
-Esto permitiría incorporar soporte para otros formatos en el futuro si `llama.cpp` o el backend utilizado los soporta directamente.
-
----
-
-# 🖥️ Interfaz gráfica
-
-La interfaz debería proporcionar una vista simple de los modelos disponibles.
-
-Por ejemplo:
-
-```text
-┌─────────────────────────────────────────────────────┐
-│ Local LLM Manager                              [⚙] │
-├─────────────────────────────────────────────────────┤
-│                                                     │
-│ Available Models                                    │
-│                                                     │
-│ ┌───────────────────────────────────────────────┐   │
-│ │ Qwen 3.5 9B                                  │   │
-│ │ Q4_K_M                                       │   │
-│ │ Context: 24K                                 │   │
-│ │ GPU: All                                     │   │
-│ │                                               │   │
-│ │                         [ Launch ]            │   │
-│ └───────────────────────────────────────────────┘   │
-│                                                     │
-│ ┌───────────────────────────────────────────────┐   │
-│ │ Gemma 4 E4B                                  │   │
-│ │ Q4_K_M                                       │   │
-│ │ Context: 32K                                 │   │
-│ │ GPU: All                                     │   │
-│ │                                               │   │
-│ │                         [ Launch ]            │   │
-│ └───────────────────────────────────────────────┘   │
-│                                                     │
-├─────────────────────────────────────────────────────┤
-│ Status: No model running                            │
-└─────────────────────────────────────────────────────┘
-```
-
-Al seleccionar un modelo, la aplicación debería mostrar:
-
-* Nombre.
-* Descripción.
-* Formato.
-* Tamaño.
-* Quantización.
-* Context size.
-* Uso de GPU.
-* Soporte de Vision.
-* Estado actual.
-* Puerto.
-* Configuración relevante.
-
----
-
-# 🚀 Ejecución
-
-Al presionar **Launch**, la aplicación deberá:
-
-1. Validar la configuración.
-2. Verificar que el archivo del modelo exista.
-3. Verificar que `llama-server.exe` exista.
-4. Construir el comando.
-5. Iniciar `llama-server`.
-6. Mostrar el estado del proceso.
-7. Capturar stdout/stderr.
-8. Mostrar los logs en la interfaz.
-9. Detectar cuando el servidor está listo.
-10. Permitir detener el modelo.
-
-Ejemplo:
-
-```text
-Model: Qwen 3.5 9B
-
-Status:
-🟢 Running
-
-Server:
-http://127.0.0.1:8080
-
-PID:
-12345
-
-GPU:
-RTX 3070 Laptop GPU
-
-VRAM:
-7.2 GB / 8 GB
-```
-
----
-
-# 🛑 Gestión del proceso
-
-La aplicación deberá administrar los procesos iniciados.
-
-Como mínimo:
-
-```text
-[ Launch ]
-[ Stop ]
-[ Restart ]
-```
-
-También debería ser posible impedir que se ejecuten accidentalmente dos modelos que requieran el mismo puerto o demasiados recursos.
-
-En el futuro podría incorporarse detección automática de:
-
-* VRAM disponible.
-* RAM disponible.
-* GPU disponible.
-* Procesos de `llama-server` existentes.
-
----
-
-# 📋 Detección automática de modelos
-
-Al iniciar la aplicación se deberá escanear:
-
-```text
-models/
-```
-
-Cada subcarpeta que contenga un `model.yaml` será considerada un modelo válido.
-
-Ejemplo:
-
-```text
-models/
-├── qwen3.5-9b/
-│   └── model.yaml
-│
-├── gemma-4-e4b/
-│   └── model.yaml
-│
-└── llama-3.1-8b/
-    └── model.yaml
-```
-
-La aplicación encontrará automáticamente:
-
-```text
-Qwen 3.5 9B
-Gemma 4 E4B
-Llama 3.1 8B
-```
-
-Sin necesidad de modificar el código fuente.
-
----
-
-# 🔧 Validación de configuración
-
-Antes de ejecutar un modelo, la aplicación deberá validar:
-
-* Que exista el archivo del modelo.
-* Que el formato sea compatible.
-* Que `llama-server` exista.
-* Que los parámetros sean válidos.
-* Que los archivos auxiliares existan.
-* Que el puerto esté disponible.
-* Que la configuración YAML sea válida.
-
-Ejemplo de error:
-
-```text
-Unable to launch model.
-
-Model file not found:
-
-models/qwen3.5-9b/qwen3.5-9b-Q4_K_M.gguf
-```
-
----
-
-# 📊 Logs
-
-Cada ejecución debería generar logs.
-
-Ejemplo:
-
-```text
-logs/
-├── qwen3.5-9b/
-│   ├── 2026-09-04_10-30-12.log
-│   └── 2026-09-04_14-21-45.log
-│
-└── gemma-4-e4b/
-    └── 2026-09-04_11-10-32.log
-```
-
-La interfaz también debería permitir visualizar el output de `llama-server` en tiempo real.
-
----
-
-# 🧩 Arquitectura
-
-Se busca mantener una arquitectura desacoplada:
-
-```text
-GUI
- │
- ▼
-Model Manager
- │
- ├── Model Discovery
- │
- ├── Configuration Loader
- │
- ├── Command Builder
- │
- └── Process Manager
-          │
-          ▼
-    llama-server
-```
-
-### GUI
-
-Responsable exclusivamente de la interacción con el usuario.
-
-### Model Discovery
-
-Busca modelos disponibles en `models/`.
-
-### Configuration Loader
-
-Carga y valida los archivos `model.yaml`.
-
-### Command Builder
-
-Transforma la configuración YAML en argumentos de `llama-server`.
-
-### Process Manager
-
-Inicia, detiene y monitorea los procesos.
-
----
-
-# 🛠️ Tecnologías
-
-La implementación inicial estará basada en:
-
-* **Python**
-* **llama.cpp**
-* **YAML**
-* **PyYAML**
-
-Para la interfaz gráfica se evaluarán alternativas como:
-
-* PySide6 / Qt
-* Tkinter
-* CustomTkinter
-
-La opción preferida inicialmente sería **PySide6**, debido a que permite construir una interfaz más completa y escalable.
-
----
-
-# 🔮 Roadmap
-
-## Fase 1 — MVP
-
-* [ ] Crear estructura del proyecto.
-* [ ] Detectar automáticamente modelos.
-* [ ] Leer `model.yaml`.
-* [ ] Validar configuraciones.
-* [ ] Detectar `llama-server.exe`.
-* [ ] Construir comandos automáticamente.
-* [ ] Lanzar `llama-server`.
-* [ ] Detener procesos.
-* [ ] Mostrar logs.
-* [ ] Crear GUI básica.
-
-## Fase 2 — Gestión avanzada
-
-* [ ] Mostrar información detallada de cada modelo.
-* [ ] Mostrar estado del servidor.
-* [ ] Detectar GPU.
-* [ ] Mostrar VRAM disponible.
-* [ ] Validar conflictos de puertos.
-* [ ] Reiniciar modelos.
-* [ ] Guardar historial de ejecuciones.
-* [ ] Configuración global de la aplicación.
-
-## Fase 3 — Experiencia de usuario
-
-* [ ] Editor visual de `model.yaml`.
-* [ ] Importación de nuevos modelos.
-* [ ] Detección automática de archivos GGUF.
-* [ ] Perfiles de configuración.
-* [ ] Favoritos.
-* [ ] Búsqueda y filtros.
-* [ ] Métricas de rendimiento.
-* [ ] Estadísticas de tokens/s.
-
-## Fase 4 — Integración
-
-* [ ] Actualización de `llama.cpp`.
-* [ ] Integración con APIs OpenAI-compatible.
-* [ ] Integración con clientes externos.
-* [ ] Soporte para múltiples servidores simultáneos.
-* [ ] Gestión de modelos Vision.
-* [ ] Soporte para configuraciones avanzadas de MoE.
-* [ ] Soporte para MTP / draft models.
-
----
-
-# 💡 Principio de diseño
-
-El principio fundamental del proyecto es:
-
-> **Agregar un modelo no debería requerir modificar el código de la aplicación.**
-
-Idealmente, el proceso debería ser:
-
-```text
-1. Crear carpeta del modelo
-2. Copiar el modelo
-3. Crear model.yaml
-4. Abrir Local LLM Manager
-5. El modelo aparece automáticamente
-6. Presionar Launch
-```
-
-Esto permite que la aplicación evolucione independientemente de los modelos instalados.
-
----
-
-# 📌 Ejemplo completo
-
-Un modelo podría quedar definido de esta manera:
-
-```yaml
-name: Gemma 4 E4B
-description: Google Gemma 4 E4B local model
-
-backend:
-  type: llama.cpp
-
-model:
-  file: gemma-4-e4b-Q4_K_M.gguf
-  format: gguf
-
-server:
-  host: 127.0.0.1
-  port: 8080
-
+  port: 18765
+  alias: Qwen3.5_35B_A3B_Qwen3.6_35B_A3B_UD_IQ1_M
 hardware:
   gpu_layers: all
   context_size: 32768
   batch_size: 2048
-  threads: 8
-
+cache:
+  type_k: q4_0
+  type_v: q4_0
+speculative:
+  enabled: true
+  spec_type: draft-mtp
+  draft_n_max: 2
 sampling:
-  temperature: 0.7
-  top_p: 0.9
-
+  temperature: 1.0
+  top_p: 0.95
+  top_k: 64
+  min_p: 0.0
+  presence_penalty: 0.0
+  repeat_penalty: 1.0
 capabilities:
   vision: false
-  tool_calling: true
-
 advanced:
-  flash_attention: true
+  reasoning: true
+  cache_ram: 4096
+  ncmoe: 32
+  parallel: 1
+  log_verbosity: 4
 ```
 
-La aplicación transformará esta configuración en la invocación correspondiente de `llama-server`.
+La app lo traduce a:
+
+```text
+llama-server.exe -m models/Qwen3.5-32B-A3B/gguf/mtp/Qwen3.6-35B-A3B-UD-IQ1_M.gguf
+  -a Qwen3.5_35B_A3B_Qwen3.6_35B_A3B_UD_IQ1_M --n-gpu-layers all --fit off
+  -c 32768 -b 2048 --reasoning on --cache-type-k q4_0 --cache-type-v q4_0
+  --spec-type draft-mtp --spec-draft-n-max 2 -ncmoe 32 --temp 1.0 --top-p 0.95
+  --top-k 64 -np 1 --log-verbosity 4 --cache-ram 4096 --host 127.0.0.1 --port 18765
+```
+
+### Vision
+
+```yaml
+capabilities:
+  vision: true
+vision:
+  encoder: mmproj-model-f16.gguf
+  image_min_tokens: 0
+```
+Se añade automáticamente `-mm <encoder>` si existe.
 
 ---
 
-# 📜 Licencia
+## Interfaz gráfica
 
-La licencia del proyecto deberá definirse antes de la primera publicación.
+* **Header**: `Local LLM Manager • llama.cpp • gestión local de modelos GGUF • MTP auto-detectado` + `Settings` + `Recargar Configs`
+* **Lista de modelos**: cada tarjeta muestra `nombre`, `cuantización`, `context`, `GPU layers`, `MTP`, `health`, dropdown de variantes y botones `Launch/Stop` + `⚙` para perfil por variante.
+* **Logs**: `Terminal — Logs` con streaming `stdout/stderr` de `llama-server`, indicador `● LIVE / ◐ STARTING / ● RUNNING / ● ERROR`.
+* **Atajos**: `F5` recarga configs desde disco sin reiniciar.
 
-Se deberá tener especial cuidado en distinguir:
+Al lanzar se valida: archivo existe, `llama-server` existe, puerto libre (`app/gui/main_window.py:410`).
 
-* Código propio del proyecto.
-* `llama.cpp`.
-* Modelos descargados.
-* Licencias individuales de los modelos.
-* Dependencias Python.
+---
 
-Los modelos no deberían incluirse dentro del repositorio Git.
+## Configuración global
+
+`config/app.yaml` (rutas relativas para el repo):
+
+```yaml
+llama_server_path: "./llama.cpp/llama-server.exe"
+models_directory: "./models"
+logs_directory: "./logs"
+default_host: "127.0.0.1"
+default_port: 18765
+```
+
+Para uso local con rutas absolutas, edita `config/app.local.yaml` (ignorado por git). `app/main.py:28` resuelve ambas.
+
+También se puede configurar desde la GUI: `Settings` → `llama-server` y `models_dir` (`main_window.py:513`).
+
+---
+
+## Instalación
+
+Requisitos: `Python >=3.12`, `llama.cpp` build con CUDA (según tu GPU).
+
+```powershell
+git clone https://github.com/santinieto/llama-launcher.git
+Set-Location llama-launcher
+pip install -r requirements.txt
+# o pip install -e .
+
+# 1. Descarga llama.cpp binarios (ej. release) a llama.cpp/llama-server.exe
+#    https://github.com/ggml-org/llama.cpp/releases
+# 2. Copia modelos GGUF a models/<nombre>/gguf/
+# 3. Ajusta config/app.yaml si es necesario
+python -m app.main
+# o local-llm-manager (si instalaste via pyproject.toml)
+```
+
+Build ejecutable:
+
+```powershell
+python build.py  # genera dist/LocalLLMManager/
+```
+
+> Modelos `*.gguf` (225GB), `llama.cpp/*.dll` (`cublas`, `ggml-cuda` ~1GB), `logs/` y `dist/build/` están ignorados en `.gitignore:1`.
+
+---
+
+## Arquitectura
+
+```text
+GUI (main_window, model_view, log_viewer)
+  │
+  ├─ ModelManager  (discovery, per-variante agrupado, _collect_variants, health)
+  ├─ ConfigLoader  (load_yaml, load_model_config, variant profiles)
+  ├─ CommandBuilder (YAML efectivo → args, MTP/draft, backend por modelo, -mm)
+  └─ ProcessManager (spawn llama-server, logs, ready/error signals)
+          │
+          └─ llama-server.exe
+```
+
+* `GUI` solo interacción.
+* `ModelManager` escanea `models/` y expone `models` + `unconfigured_folders`.
+* `CommandBuilder` respeta `variant_has_mtp` para no enviar `--spec-type` en variantes `nomtp`.
+* `ProcessManager` captura salida y escribe `logs/<modelo>/YYYY-MM-DD_HH-MM-SS.log`.
+
+---
+
+## Tecnologías
+
+* **Python 3.12+**
+* **PySide6 >=6.6.0** (Qt)
+* **PyYAML >=6.0**
+* **llama.cpp** (`llama-server`)
+
+---
+
+## Roadmap
+
+### Fase 1 — MVP
+
+* [x] Estructura del proyecto
+* [x] Detección automática de modelos (incl. per-variante y `gguf/mtp|nomtp`)
+* [x] Leer `model.yaml` / `model.<variant>.yaml`
+* [x] Validar configuraciones (`ModelHealth`)
+* [x] Detectar `llama-server.exe` (global y por modelo)
+* [x] Construir comandos automáticamente (incl. MTP, cache, ncmoe, vision)
+* [x] Lanzar/detener `llama-server`
+* [x] Mostrar logs en tiempo real
+* [x] GUI básica (split, tarjetas, logs)
+
+### Fase 2 — Gestión avanzada
+
+* [x] Info detallada por modelo (cuantización, MTP, health, variantes, perfiles)
+* [x] Estado del servidor (`RUNNING/STARTING/ERROR`)
+* [x] Validar conflictos de puerto y proceso único
+* [x] Reiniciar / F5 recarga
+* [x] Configuración global (`config/app.yaml` + Settings)
+* [ ] Mostrar VRAM/RAM en vivo (actualmente solo logs de `llama-server`)
+* [ ] Historial de ejecuciones
+
+### Fase 3 — Experiencia de usuario
+
+* [x] Editor visual por variante (`⚙` VariantProfileDialog)
+* [x] Detección automática de GGUF y creación de `model.yaml` para carpetas sin config
+* [x] Perfiles por variante (hereda base)
+* [ ] Favoritos / búsqueda / filtros
+* [ ] Métricas tokens/s en GUI
+
+### Fase 4 — Integración
+
+* [x] MTP / draft models
+* [x] Vision `mmproj`
+* [x] MoE (`ncmoe`, `n_expert`)
+* [ ] Múltiples servidores simultáneos (actual: uno a la vez)
+* [ ] Actualización de `llama.cpp` desde la app
+* [ ] API OpenAI-compatible integrada
+
+---
+
+## Principio de diseño
+
+> **Agregar un modelo no debe requerir modificar el código.**
+
+1. Crear carpeta `models/mi-modelo/`
+2. Copiar `.gguf`
+3. Crear `model.yaml` (o dejar que la app lo sugiera)
+4. Abrir Local LLM Manager → aparece automáticamente → `Launch`
+
+---
+
+## Licencia
+
+Por definir. Distinguir: código propio, `llama.cpp` (MIT), modelos (licencia de cada modelo) y dependencias. Los modelos no se incluyen en el repo.
+
