@@ -323,6 +323,12 @@ GUI (main_window, model_view, log_viewer)
 
 ---
 
+## Release Process
+
+Ver [docs/RELEASE_PROCESS.md](docs/RELEASE_PROCESS.md) para convención de ramas `<tipo>/<numero>__<slug>`, tipos (`feature`, `enhancement`, `bugfix`, `hotfix`, `docs`, `chore`), flujo `branch → PR → squash → tag` y versionado.
+
+---
+
 ## Licencia
 
 Por definir. Distinguir: código propio, `llama.cpp` (MIT), modelos (licencia de cada modelo) y dependencias. Los modelos no se incluyen en el repo.
