@@ -593,20 +593,32 @@ class MainWindow(QWidget):
         if model.status != ModelStatus.RUNNING:
             QMessageBox.information(self, "No disponible", "El modelo no está en ejecución.\nInicia el modelo primero.")
             return
-        if hasattr(model, "get_effective_model"):
-            eff = model.get_effective_model(model.model.file)
-        else:
-            eff = model
+
+        # Cargar modelo efectivo una vez
+        try:
+            if hasattr(model, "get_effective_model"):
+                eff = model.get_effective_model(model.model.file)
+            else:
+                eff = model
+        except Exception as e:
+            QMessageBox.warning(self, "Error", f"No se pudo obtener el modelo efectivo:\n{e}")
+            return
+
+        # Construir URL con protocolo correcto
         host = eff.server.host or "127.0.0.1"
         if host == "0.0.0.0":
             host = "127.0.0.1"
         port = eff.server.port or 8080
-        url = f"http://{host}:{port}"
+        protocol = eff.server.protocol or "http"
+        url = f"{protocol}://{host}:{port}"
+
+        # Log detallado
+        self._log_viewer.append_line(f"[Browser] Abriendo {url} (protocolo: {protocol}, host: {host}, port: {port})")
+        self._status_bar.setText(f"🌐 Abriendo {url}")
+        self._status_bar.setStyleSheet("color: #7aaaff; font-size: 10px; background: transparent; border: none; font-weight: bold;")
+
         try:
             QDesktopServices.openUrl(QUrl(url))
-            self._log_viewer.append_line(f"[Browser] Abriendo {url}")
-            self._status_bar.setText(f"🌐 Abriendo {url}")
-            self._status_bar.setStyleSheet("color: #7aaaff; font-size: 10px; background: transparent; border: none; font-weight: bold;")
         except Exception as e:
             QMessageBox.warning(self, "Error", f"No se pudo abrir el navegador:\n{e}\n\nURL: {url}")
             self._log_viewer.append_line(f"[Browser] Error abriendo {url}: {e}")
