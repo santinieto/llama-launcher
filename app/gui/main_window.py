@@ -480,12 +480,21 @@ class MainWindow(QWidget):
                 quoted.append(c)
         if not multiline:
             return " ".join(quoted)
-        # Multilinea: primer elemento (exe) solo, resto uno por renglón con sangría y ^ para cmd
+        # Multilinea: un par flag+valor por renglón para lectura
         if not quoted:
             return ""
         lines = [quoted[0] + " ^"]
-        for arg in quoted[1:]:
-            lines.append(f"  {arg} ^")
+        i = 1
+        while i < len(quoted):
+            cur = quoted[i]
+            nxt = quoted[i + 1] if i + 1 < len(quoted) else None
+            # Si cur es flag (-, --) y nxt existe y no es flag, agrupar en mismo renglón
+            if cur.startswith("-") and nxt is not None and not nxt.startswith("-"):
+                lines.append(f"  {cur} {nxt} ^")
+                i += 2
+            else:
+                lines.append(f"  {cur} ^")
+                i += 1
         # Quitar último ^ y unir
         if lines:
             lines[-1] = lines[-1].rstrip(" ^")
