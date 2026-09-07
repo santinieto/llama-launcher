@@ -4,6 +4,7 @@ from pathlib import Path
 
 from PySide6.QtCore import Qt, Slot
 from PySide6.QtWidgets import (
+    QApplication,
     QFileDialog,
     QFrame,
     QInputDialog,
@@ -367,6 +368,7 @@ class MainWindow(QWidget):
             card.variant_changed.connect(self._on_variant_changed)
             card.edit_variant_profile.connect(self._on_edit_variant_profile)
             card.edit_backend_requested.connect(self._on_edit_backend)
+            card.copy_command_clicked.connect(self._on_copy_command)
             self._model_cards[model.name] = card
             self._models_layout.addWidget(card)
 
@@ -442,8 +444,50 @@ class MainWindow(QWidget):
                 self._log_viewer.append_line(f"[System] Lanzando {name} [{Path(model.model.file).name}] con perfil custom")
         self._log_viewer.clear()
         self._log_viewer.append_line(f"[System] Lanzando {name} — variante {Path(model.model.file).name} — MTP {eff.mtp_status_label()[0] if hasattr(eff, 'mtp_status_label') else ''}")
+        # Mostrar comando final (related to #2)
+        try:
+            cmd = self._command_builder.build(eff)
+            cmd_str = self._format_command(cmd)
+            self._log_viewer.append_line(f"[CMD] {cmd_str}")
+            self._log_viewer.append_line(f"[CMD] Variante: {Path(eff.model.file).name} | {len(cmd)} args | {eff.server.host}:{eff.server.port}")
+        except Exception as e:
+            self._log_viewer.append_line(f"[CMD] (error al construir comando: {e})")
         self._process_manager.start(model)  # pasa original, ProcessManager aplicará perfil internamente
         self._update_card(name)
+
+    def _format_command(self, cmd: list[str]) -> str:
+        """Formatea lista de args a string copiable para consola Windows."""
+        parts: list[str] = []
+        for c in cmd:
+            if " " in c or '"' in c or "'" in c:
+                # escapar comillas internas
+                esc = c.replace('"', '\\"')
+                parts.append(f'"{esc}"')
+            else:
+                parts.append(c)
+        return " ".join(parts)
+
+    def _on_copy_command(self, name: str) -> None:
+        model = self._model_manager.get_by_name(name)
+        if model is None:
+            return
+        if hasattr(model, "get_effective_model"):
+            eff = model.get_effective_model(model.model.file)
+        elif hasattr(model, "has_variant_profile") and model.has_variant_profile(model.model.file):
+            eff = model.get_for_variant(model.model.file)
+        else:
+            eff = model
+        try:
+            cmd = self._command_builder.build(eff)
+            cmd_str = self._format_command(cmd)
+            QApplication.clipboard().setText(cmd_str)
+            self._log_viewer.append_line(f"[CMD] {cmd_str}")
+            self._log_viewer.append_line(f"[CMD] Copiado al portapapeles — variante {Path(eff.model.file).name} — {eff.server.host}:{eff.server.port}")
+            self._status_bar.setText(f"[CMD] Copiado: {Path(eff.model.file).name}")
+            self._status_bar.setStyleSheet("color: #4caf50; font-size: 10px; background: transparent; border: none; font-weight: bold;")
+            QMessageBox.information(self, "Comando copiado", f"Comando de {name} copiado al portapapeles:\n\n{cmd_str[:800]}{'...' if len(cmd_str) > 800 else ''}")
+        except Exception as e:
+            QMessageBox.warning(self, "Error", f"No se pudo construir el comando:\n{e}")
 
     def _stop_model(self, name: str) -> None:
         self._log_viewer.append_line(f"[System] Deteniendo {name}…")

@@ -273,6 +273,7 @@ class ModelCard(QFrame):
     variant_changed = Signal(str, str)  # name, new_file
     edit_variant_profile = Signal(str, str)  # name, variant
     edit_backend_requested = Signal(str)  # name
+    copy_command_clicked = Signal(str)  # name
 
     def __init__(
         self,
@@ -503,6 +504,18 @@ class ModelCard(QFrame):
         self._status_label = QLabel()
         btn_layout.addWidget(self._status_label)
 
+        self._copy_cmd_btn = QPushButton("⧉")
+        self._copy_cmd_btn.setFixedSize(32, 32)
+        self._copy_cmd_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self._copy_cmd_btn.setToolTip("Copiar comando final de llama-server (variante seleccionada)\nMuestra el comando exacto que se ejecutará al hacer Launch")
+        self._copy_cmd_btn.setStyleSheet(
+            "QPushButton { background-color: #1e2a4a; color: #7aaaff; border: 1px solid #3a4a6a; border-radius: 8px; font-size: 13px; }"
+            "QPushButton:hover { background-color: #2a3a5a; color: #fff; border-color: #5a6aaa; }"
+            "QPushButton:pressed { background-color: #1a1a3a; }"
+        )
+        self._copy_cmd_btn.clicked.connect(self._on_copy_command)
+        btn_layout.addWidget(self._copy_cmd_btn)
+
         self._action_btn = QPushButton()
         self._action_btn.setFixedHeight(32)
         self._action_btn.setFixedWidth(110)
@@ -684,6 +697,11 @@ class ModelCard(QFrame):
         if not self._model:
             return
         self.edit_backend_requested.emit(self._model.name)
+
+    def _on_copy_command(self) -> None:
+        if not self._model:
+            return
+        self.copy_command_clicked.emit(self._model.name)
 
     def _update_backend_label(self) -> None:
         if not hasattr(self, "_backend_label") or self._backend_label is None or not self._model:
