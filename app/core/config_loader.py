@@ -71,6 +71,7 @@ def _parse_server(raw: dict[str, Any] | None) -> ServerConfig:
         host=raw.get("host", "127.0.0.1"),
         port=raw.get("port", 18765),
         alias=raw.get("alias", ""),
+        protocol=raw.get("protocol", "http"),
     )
 
 

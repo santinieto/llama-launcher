@@ -2,7 +2,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from PySide6.QtCore import Qt, Slot
+from PySide6.QtCore import Qt, QUrl, Slot
+from PySide6.QtGui import QDesktopServices
 from PySide6.QtWidgets import (
     QApplication,
     QDialog,
@@ -373,6 +374,7 @@ class MainWindow(QWidget):
             card.edit_backend_requested.connect(self._on_edit_backend)
             card.copy_command_clicked.connect(self._on_copy_command)
             card.dry_run_clicked.connect(self._on_dry_run)
+            card.open_browser_clicked.connect(self._on_open_browser)
             self._model_cards[model.name] = card
             self._models_layout.addWidget(card)
 
@@ -583,6 +585,43 @@ class MainWindow(QWidget):
             dlg.exec()
         except Exception as e:
             QMessageBox.warning(self, "Error", f"No se pudo construir el comando:\n{e}")
+
+    def _on_open_browser(self, name: str) -> None:
+        model = self._model_manager.get_by_name(name)
+        if model is None:
+            return
+        if model.status != ModelStatus.RUNNING:
+            QMessageBox.information(self, "No disponible", "El modelo no está en ejecución.\nInicia el modelo primero.")
+            return
+
+        # Cargar modelo efectivo una vez
+        try:
+            if hasattr(model, "get_effective_model"):
+                eff = model.get_effective_model(model.model.file)
+            else:
+                eff = model
+        except Exception as e:
+            QMessageBox.warning(self, "Error", f"No se pudo obtener el modelo efectivo:\n{e}")
+            return
+
+        # Construir URL con protocolo correcto
+        host = eff.server.host or "127.0.0.1"
+        if host == "0.0.0.0":
+            host = "127.0.0.1"
+        port = eff.server.port or 8080
+        protocol = eff.server.protocol or "http"
+        url = f"{protocol}://{host}:{port}"
+
+        # Log detallado
+        self._log_viewer.append_line(f"[Browser] Abriendo {url} (protocolo: {protocol}, host: {host}, port: {port})")
+        self._status_bar.setText(f"🌐 Abriendo {url}")
+        self._status_bar.setStyleSheet("color: #7aaaff; font-size: 10px; background: transparent; border: none; font-weight: bold;")
+
+        try:
+            QDesktopServices.openUrl(QUrl(url))
+        except Exception as e:
+            QMessageBox.warning(self, "Error", f"No se pudo abrir el navegador:\n{e}\n\nURL: {url}")
+            self._log_viewer.append_line(f"[Browser] Error abriendo {url}: {e}")
 
     def _stop_model(self, name: str) -> None:
         self._log_viewer.append_line(f"[System] Deteniendo {name}…")

@@ -275,6 +275,7 @@ class ModelCard(QFrame):
     edit_backend_requested = Signal(str)  # name
     copy_command_clicked = Signal(str)  # name
     dry_run_clicked = Signal(str)  # name
+    open_browser_clicked = Signal(str)  # name
 
     def __init__(
         self,
@@ -517,6 +518,18 @@ class ModelCard(QFrame):
         self._dry_run_btn.clicked.connect(self._on_dry_run)
         btn_layout.addWidget(self._dry_run_btn)
 
+        self._open_browser_btn = QPushButton("🌐")
+        self._open_browser_btn.setFixedSize(32, 32)
+        self._open_browser_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self._open_browser_btn.setToolTip("Abrir servidor en navegador")
+        self._open_browser_btn.setStyleSheet(
+            "QPushButton { background-color: #1a2a4a; color: #7aaaff; border: 1px solid #3a3a6a; border-radius: 8px; font-size: 13px; }"
+            "QPushButton:hover { background-color: #2a3a6a; color: #fff; border-color: #5a6aaa; }"
+            "QPushButton:pressed { background-color: #1a1a3a; }"
+        )
+        self._open_browser_btn.clicked.connect(self._on_open_browser)
+        btn_layout.addWidget(self._open_browser_btn)
+
         self._action_btn = QPushButton()
         self._action_btn.setFixedHeight(32)
         self._action_btn.setFixedWidth(110)
@@ -620,6 +633,24 @@ class ModelCard(QFrame):
             else:
                 self._variant_combo.setToolTip("Selecciona versión. Cada variante puede tener su propio perfil (⚙).")
 
+        # Visibilidad del botón abrir navegador (solo RUNNING)
+        if hasattr(self, "_open_browser_btn"):
+            is_running_visible = m.status == ModelStatus.RUNNING
+            self._open_browser_btn.setVisible(is_running_visible)
+            if is_running_visible:
+                try:
+                    if hasattr(m, "get_effective_model"):
+                        eff = m.get_effective_model(m.model.file)
+                    else:
+                        eff = m
+                    host = eff.server.host or "127.0.0.1"
+                    if host == "0.0.0.0":
+                        host = "127.0.0.1"
+                    url = f"http://{host}:{eff.server.port}"
+                    self._open_browser_btn.setToolTip(f"Abrir {url} en navegador")
+                except Exception:
+                    self._open_browser_btn.setToolTip("Abrir servidor en navegador")
+
         # Estilo del botón según estado
         if m.status == ModelStatus.RUNNING:
             _set_status(self._status_label, "● Running", "#4caf50")
@@ -708,6 +739,11 @@ class ModelCard(QFrame):
         if not self._model:
             return
         self.dry_run_clicked.emit(self._model.name)
+
+    def _on_open_browser(self) -> None:
+        if not self._model:
+            return
+        self.open_browser_clicked.emit(self._model.name)
 
     def _update_backend_label(self) -> None:
         if not hasattr(self, "_backend_label") or self._backend_label is None or not self._model:
