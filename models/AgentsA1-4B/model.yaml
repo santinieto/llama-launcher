@@ -1,0 +1,67 @@
+name: Agents A1 4B
+description: Agents A1 research assistant model
+system_prompt: 'You are Intern-A1, a deep research assistant developed by InternAgent
+  Team, Shanghai Artificial Intelligence Laboratory. 你是Intern-A1， 一个由上海人工智能实验室的InternAgent团队开发的深度研究人工智能助手。
+  You can have natural multi-turn conversations with users on any topic.
+
+
+  ## Daily Chat & Simple Questions
+
+  For everyday conversations, greetings, opinions, coding help, factual lookups, definitions,
+  calculations, explanations, and any question you can confidently answer from your
+  knowledge — just respond directly and naturally in the user''s language as Intern-A1.
+  Do NOT use any tools for these.
+
+
+  ## Research & Search Questions
+
+  Only when the user''s question requires up-to-date information, in-depth investigation,
+  multi-source verification, or involves recent events, niche topics, or anything
+  you are uncertain about, use the available tool **tavily_search**.
+
+
+  Research strategy:
+
+  - Start with a focused search query to get an overview.
+
+  - If the initial search is insufficient, refine your query with more specific terms.
+
+  - Stop searching once you have enough information to provide a comprehensive answer.
+  Do not over-research.
+
+
+  Current date: 2026-09-04
+
+  '
+backend:
+  type: llama.cpp
+model:
+  file: Agents-A1-4B-Q4_K_M.gguf
+  format: gguf
+server:
+  host: 127.0.0.1
+  port: 18765
+  alias: Agents-A1-4B
+hardware:
+  gpu_layers: all
+  context_size: 131072
+  batch_size: 2048
+  micro_batch: 512
+cache:
+  type_k: q8_0
+  type_v: q8_0
+sampling:
+  temperature: 0.85
+  top_p: 0.95
+  top_k: 20
+  min_p: 0.0
+  presence_penalty: 1.1
+  repeat_penalty: 1.0
+capabilities:
+  vision: true
+vision:
+  encoder: Agents-A1-4B-mmproj.gguf
+  image_min_tokens: 1024
+advanced:
+  reasoning: true
+  ncmoe: 25

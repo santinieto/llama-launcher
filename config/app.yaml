@@ -1,0 +1,5 @@
+llama_server_path: "./llama.cpp/llama-server.exe"
+models_directory: "./models"
+logs_directory: "./logs"
+default_host: "127.0.0.1"
+default_port: 18765

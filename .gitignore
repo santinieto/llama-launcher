@@ -1,0 +1,80 @@
+# Binarios de modelos - NO subir (pesan 225GB)
+*.gguf
+*.ggml
+*.bin
+*.safetensors
+*.pt
+*.pth
+*.onnx
+*.ckpt
+
+# Cache HuggingFace y temporales de descarga (dentro de models/**/gguf/.cache)
+**/.cache/
+**/.huggingface/
+**/huggingface/
+models/**/.cache/
+models/**/gguf/.cache/
+*.metadata
+
+# Logs generados por llama-server (rotativos, no relevantes para repo)
+logs/*
+!logs/.gitkeep
+*.log
+
+# Binarios compilados de llama.cpp (1GB+ cuda dlls) - descargar aparte según README
+llama.cpp/*.dll
+llama.cpp/*.exe
+llama.cpp/*.so
+llama.cpp/*.dylib
+llama.cpp/*.lib
+llama.cpp/*.a
+# Mantener el directorio llama.cpp con un .gitkeep, pero ignorar binarios grandes
+
+# Outputs de PyInstaller
+dist/*
+!dist/.gitkeep
+build/*
+!build/.gitkeep
+*.spec
+!LocalLLMManager.spec
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.egg-info/
+.eggs/
+.venv/
+venv/
+env/
+.env
+
+# Node / opencode - no subir dependencias instaladas
+.opencode/node_modules/
+node_modules/
+package-lock.json
+.opencode/package-lock.json
+.opencode/node_modules
+
+# Sistema y editor
+.DS_Store
+Thumbs.db
+desktop.ini
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Mantener configs de ejemplo pero ignorar variantes locales con paths absolutos si quieres
+# (config/app.yaml contiene rutas locales D:/... - se sube como plantilla)
+# Si tienes secrets, mover a config/app.local.yaml
+config/app.local.yaml
+
+# Archivos generados por CommandBuilder (chat templates parcheados)
+models/**/.chat_template.*.jinja
+**/.chat_template.*.jinja
+
+# Permitir .gitkeep en directorios ignorados (mantiene estructura vac�a en repo)
+!logs/.gitkeep
+!llama.cpp/.gitkeep
+!models/.gitkeep

@@ -1,0 +1,37 @@
+name: Qwen 3.5 35B A3B (Qwen3.6-35B-A3B-UD-Q4_K_XL)
+description: Qwen 3.5 35B A3B
+backend:
+  type: llama.cpp
+model:
+  file: mtp/Qwen3.6-35B-A3B-UD-Q4_K_XL.gguf
+  format: gguf
+server:
+  host: 127.0.0.1
+  port: 18765
+  alias: Qwen3.5_35B_A3B_Qwen3.6_35B_A3B_UD_Q4_K_
+hardware:
+  gpu_layers: all
+  context_size: 32768
+  batch_size: 2048
+cache:
+  type_k: q4_0
+  type_v: q4_0
+speculative:
+  enabled: true
+  spec_type: draft-mtp
+  draft_n_max: 2
+sampling:
+  temperature: 1.0
+  top_p: 0.95
+  top_k: 64
+  min_p: 0.0
+  presence_penalty: 0.0
+  repeat_penalty: 1.0
+capabilities:
+  vision: false
+advanced:
+  reasoning: true
+  cache_ram: 4096
+  ncmoe: 32
+  parallel: 1
+  log_verbosity: 4

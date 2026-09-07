@@ -1,0 +1,52 @@
+﻿name: Gemma 4 E4B
+description: Google Gemma 4 E4B
+
+backend:
+  type: llama.cpp
+
+model:
+  file: gemma-4-E4B-it-qat-UD-Q4_K_XL.gguf
+  format: gguf
+  draft_model: mtp-gemma-4-E4B-it.gguf
+
+server:
+  host: 127.0.0.1
+  port: 18765
+  alias: Gemma4-E4B
+
+hardware:
+  gpu_layers: all
+  context_size: 131070
+  batch_size: 2048
+
+cache:
+  type_k: q4_0
+  type_v: q4_0
+  type_k_draft: q4_0
+  type_v_draft: q4_0
+
+speculative:
+  enabled: true
+  spec_type: draft-mtp
+  draft_n_max: 3
+
+sampling:
+  temperature: 1.0
+  top_p: 0.95
+  top_k: 64
+  min_p: 0.0
+  presence_penalty: 0.0
+  repeat_penalty: 1.0
+
+capabilities:
+  vision: true
+
+vision:
+  encoder: mmproj-F16.gguf
+  image_min_tokens: 1024
+
+advanced:
+  reasoning: true
+  parallel: 1
+  log_verbosity: 4
+

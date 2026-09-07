@@ -1,0 +1,31 @@
+name: Qwen3.8-27B
+description: ''
+backend:
+  type: llama.cpp
+model:
+  file: Qwen3.8-27B-UD-IQ2_XXS.gguf
+  format: gguf
+server:
+  host: 127.0.0.1
+  port: 18765
+  alias: Qwen3.8-27B
+hardware:
+  gpu_layers: 65
+  context_size: 8192
+  batch_size: 2048
+cache:
+  type_k: q4_0
+  type_v: q4_0
+sampling:
+  temperature: 0.7
+  top_p: 0.9
+capabilities:
+  vision: false
+  tool_calling: false
+advanced:
+  reasoning: false
+  cache_ram: 4096
+speculative:
+  enabled: false
+  spec_type: draft-mtp
+  draft_n_max: 3
