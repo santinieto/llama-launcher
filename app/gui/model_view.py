@@ -505,22 +505,10 @@ class ModelCard(QFrame):
         self._status_label = QLabel()
         btn_layout.addWidget(self._status_label)
 
-        self._copy_cmd_btn = QPushButton("⧉")
-        self._copy_cmd_btn.setFixedSize(32, 32)
-        self._copy_cmd_btn.setCursor(Qt.CursorShape.PointingHandCursor)
-        self._copy_cmd_btn.setToolTip("Copiar comando final de llama-server (variante seleccionada)\nMuestra el comando exacto que se ejecutará al hacer Launch")
-        self._copy_cmd_btn.setStyleSheet(
-            "QPushButton { background-color: #1e2a4a; color: #7aaaff; border: 1px solid #3a4a6a; border-radius: 8px; font-size: 13px; }"
-            "QPushButton:hover { background-color: #2a3a5a; color: #fff; border-color: #5a6aaa; }"
-            "QPushButton:pressed { background-color: #1a1a3a; }"
-        )
-        self._copy_cmd_btn.clicked.connect(self._on_copy_command)
-        btn_layout.addWidget(self._copy_cmd_btn)
-
         self._dry_run_btn = QPushButton("👁")
         self._dry_run_btn.setFixedSize(32, 32)
         self._dry_run_btn.setCursor(Qt.CursorShape.PointingHandCursor)
-        self._dry_run_btn.setToolTip("Dry run — ver comando sin iniciar el modelo\nMuestra el comando completo que se ejecutaría al hacer Launch")
+        self._dry_run_btn.setToolTip("Ver comando — dry run sin iniciar el modelo\nMuestra el comando completo que se ejecutaría al hacer Launch (copiable)")
         self._dry_run_btn.setStyleSheet(
             "QPushButton { background-color: #2a2a1a; color: #ffb74d; border: 1px solid #5a4a2a; border-radius: 8px; font-size: 13px; }"
             "QPushButton:hover { background-color: #3a2a1a; color: #ffcc80; border-color: #8a6a3a; }"

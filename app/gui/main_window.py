@@ -448,28 +448,48 @@ class MainWindow(QWidget):
                 self._log_viewer.append_line(f"[System] Lanzando {name} [{Path(model.model.file).name}] con perfil custom")
         self._log_viewer.clear()
         self._log_viewer.append_line(f"[System] Lanzando {name} — variante {Path(model.model.file).name} — MTP {eff.mtp_status_label()[0] if hasattr(eff, 'mtp_status_label') else ''}")
-        # Mostrar comando final (related to #2)
+        # Mostrar comando final (related to #2) — multilinea para lectura
         try:
             cmd = self._command_builder.build(eff)
-            cmd_str = self._format_command(cmd)
-            self._log_viewer.append_line(f"[CMD] {cmd_str}")
+            cmd_single = self._format_command(cmd, multiline=False)
+            cmd_multi = self._format_command(cmd, multiline=True)
+            # Log en una sola línea para copiar, y multilinea para lectura
+            self._log_viewer.append_line(f"[CMD] {cmd_single}")
+            # También log multilinea para lectura amigable
+            for line in cmd_multi.splitlines():
+                if line.strip():
+                    self._log_viewer.append_line(f"[CMD] {line.strip()}")
             self._log_viewer.append_line(f"[CMD] Variante: {Path(eff.model.file).name} | {len(cmd)} args | {eff.server.host}:{eff.server.port}")
         except Exception as e:
             self._log_viewer.append_line(f"[CMD] (error al construir comando: {e})")
         self._process_manager.start(model)  # pasa original, ProcessManager aplicará perfil internamente
         self._update_card(name)
 
-    def _format_command(self, cmd: list[str]) -> str:
-        """Formatea lista de args a string copiable para consola Windows."""
-        parts: list[str] = []
+    def _format_command(self, cmd: list[str], multiline: bool = False) -> str:
+        """Formatea lista de args a string copiable para consola Windows.
+
+        - multiline=False: una sola línea con comillas para copiar/ejecutar.
+        - multiline=True: un arg por renglón para lectura (\" \\\" al final en Windows).
+        """
+        quoted: list[str] = []
         for c in cmd:
             if " " in c or '"' in c or "'" in c:
-                # escapar comillas internas
                 esc = c.replace('"', '\\"')
-                parts.append(f'"{esc}"')
+                quoted.append(f'"{esc}"')
             else:
-                parts.append(c)
-        return " ".join(parts)
+                quoted.append(c)
+        if not multiline:
+            return " ".join(quoted)
+        # Multilinea: primer elemento (exe) solo, resto uno por renglón con sangría y ^ para cmd
+        if not quoted:
+            return ""
+        lines = [quoted[0] + " ^"]
+        for arg in quoted[1:]:
+            lines.append(f"  {arg} ^")
+        # Quitar último ^ y unir
+        if lines:
+            lines[-1] = lines[-1].rstrip(" ^")
+        return "\n".join(lines)
 
     def _on_copy_command(self, name: str) -> None:
         model = self._model_manager.get_by_name(name)
@@ -483,7 +503,7 @@ class MainWindow(QWidget):
             eff = model
         try:
             cmd = self._command_builder.build(eff)
-            cmd_str = self._format_command(cmd)
+            cmd_str = self._format_command(cmd, multiline=False)
             QApplication.clipboard().setText(cmd_str)
             self._log_viewer.append_line(f"[CMD] {cmd_str}")
             self._log_viewer.append_line(f"[CMD] Copiado al portapapeles — variante {Path(eff.model.file).name} — {eff.server.host}:{eff.server.port}")
@@ -505,24 +525,28 @@ class MainWindow(QWidget):
             eff = model
         try:
             cmd = self._command_builder.build(eff)
-            cmd_str = self._format_command(cmd)
+            cmd_single = self._format_command(cmd, multiline=False)
+            cmd_multi = self._format_command(cmd, multiline=True)
+            # log multilinea para lectura
             self._log_viewer.append_line(f"[DRY-RUN] {name} — variante {Path(eff.model.file).name}")
-            self._log_viewer.append_line(f"[DRY-RUN] {cmd_str}")
+            for line in cmd_multi.splitlines():
+                self._log_viewer.append_line(f"[DRY-RUN] {line}")
             dlg = QDialog(self)
             dlg.setWindowTitle(f"Dry run — {name} [{Path(eff.model.file).name}]")
-            dlg.setMinimumSize(720, 380)
+            dlg.setMinimumSize(720, 420)
             layout = QVBoxLayout(dlg)
             info = QLabel(
                 f"Modelo: <b>{name}</b> — variante <code>{Path(eff.model.file).name}</code><br>"
                 f"Servidor: <code>{eff.server.host}:{eff.server.port}</code> — alias <code>{eff.server.alias}</code><br>"
-                f"Este es el comando <b>exacto</b> que se ejecutaría al hacer <b>Launch</b> (no inicia el modelo)."
+                f"Este es el comando <b>exacto</b> que se ejecutaría al hacer <b>Launch</b> (no inicia el modelo).<br>"
+                f"<span style='color:#8a8aaa;'>Un arg por renglón para lectura — copiar deja una sola línea ejecutable.</span>"
             )
             info.setStyleSheet("color: #a0a0b8; font-size: 10px; background: transparent; border: none;")
             info.setWordWrap(True)
             layout.addWidget(info)
             edit = QTextEdit()
             edit.setReadOnly(True)
-            edit.setPlainText(cmd_str)
+            edit.setPlainText(cmd_multi)
             edit.setStyleSheet("background-color: #1e1e2e; color: #e0e0e0; border: 1px solid #2d2d44; border-radius: 6px; font-family: Consolas, monospace; font-size: 9px;")
             layout.addWidget(edit)
             btns = QDialogButtonBox()
@@ -536,7 +560,7 @@ class MainWindow(QWidget):
             btns.addButton(launch_btn, QDialogButtonBox.ButtonRole.ActionRole)
             btns.addButton(close_btn, QDialogButtonBox.ButtonRole.RejectRole)
             def _copy():
-                QApplication.clipboard().setText(cmd_str)
+                QApplication.clipboard().setText(cmd_single)
                 self._log_viewer.append_line(f"[DRY-RUN] Copiado: {Path(eff.model.file).name}")
                 self._status_bar.setText(f"[DRY-RUN] Copiado: {Path(eff.model.file).name}")
                 self._status_bar.setStyleSheet("color: #4caf50; font-size: 10px; background: transparent; border: none; font-weight: bold;")
