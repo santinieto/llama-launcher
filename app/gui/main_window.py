@@ -4,6 +4,9 @@ from pathlib import Path
 
 from PySide6.QtCore import Qt, Slot
 from PySide6.QtWidgets import (
+    QApplication,
+    QDialog,
+    QDialogButtonBox,
     QFileDialog,
     QFrame,
     QInputDialog,
@@ -13,6 +16,7 @@ from PySide6.QtWidgets import (
     QPushButton,
     QScrollArea,
     QSplitter,
+    QTextEdit,
     QVBoxLayout,
     QWidget,
 )
@@ -367,6 +371,8 @@ class MainWindow(QWidget):
             card.variant_changed.connect(self._on_variant_changed)
             card.edit_variant_profile.connect(self._on_edit_variant_profile)
             card.edit_backend_requested.connect(self._on_edit_backend)
+            card.copy_command_clicked.connect(self._on_copy_command)
+            card.dry_run_clicked.connect(self._on_dry_run)
             self._model_cards[model.name] = card
             self._models_layout.addWidget(card)
 
@@ -442,8 +448,141 @@ class MainWindow(QWidget):
                 self._log_viewer.append_line(f"[System] Lanzando {name} [{Path(model.model.file).name}] con perfil custom")
         self._log_viewer.clear()
         self._log_viewer.append_line(f"[System] Lanzando {name} — variante {Path(model.model.file).name} — MTP {eff.mtp_status_label()[0] if hasattr(eff, 'mtp_status_label') else ''}")
+        # Mostrar comando final (related to #2) — multilinea para lectura
+        try:
+            cmd = self._command_builder.build(eff)
+            cmd_single = self._format_command(cmd, multiline=False)
+            cmd_multi = self._format_command(cmd, multiline=True)
+            # Log en una sola línea para copiar, y multilinea para lectura
+            self._log_viewer.append_line(f"[CMD] {cmd_single}")
+            # También log multilinea para lectura amigable
+            for line in cmd_multi.splitlines():
+                if line.strip():
+                    self._log_viewer.append_line(f"[CMD] {line.strip()}")
+            self._log_viewer.append_line(f"[CMD] Variante: {Path(eff.model.file).name} | {len(cmd)} args | {eff.server.host}:{eff.server.port}")
+        except Exception as e:
+            self._log_viewer.append_line(f"[CMD] (error al construir comando: {e})")
         self._process_manager.start(model)  # pasa original, ProcessManager aplicará perfil internamente
         self._update_card(name)
+
+    def _format_command(self, cmd: list[str], multiline: bool = False) -> str:
+        """Formatea lista de args a string copiable para consola Windows.
+
+        - multiline=False: una sola línea con comillas para copiar/ejecutar.
+        - multiline=True: un arg por renglón para lectura (\" \\\" al final en Windows).
+        """
+        quoted: list[str] = []
+        for c in cmd:
+            if " " in c or '"' in c or "'" in c:
+                esc = c.replace('"', '\\"')
+                quoted.append(f'"{esc}"')
+            else:
+                quoted.append(c)
+        if not multiline:
+            return " ".join(quoted)
+        # Multilinea: un par flag+valor por renglón para lectura
+        if not quoted:
+            return ""
+        lines = [quoted[0] + " ^"]
+        i = 1
+        while i < len(quoted):
+            cur = quoted[i]
+            nxt = quoted[i + 1] if i + 1 < len(quoted) else None
+            # Si cur es flag (-, --) y nxt existe y no es flag, agrupar en mismo renglón
+            if cur.startswith("-") and nxt is not None and not nxt.startswith("-"):
+                lines.append(f"  {cur} {nxt} ^")
+                i += 2
+            else:
+                lines.append(f"  {cur} ^")
+                i += 1
+        # Quitar último ^ y unir
+        if lines:
+            lines[-1] = lines[-1].rstrip(" ^")
+        return "\n".join(lines)
+
+    def _on_copy_command(self, name: str) -> None:
+        model = self._model_manager.get_by_name(name)
+        if model is None:
+            return
+        if hasattr(model, "get_effective_model"):
+            eff = model.get_effective_model(model.model.file)
+        elif hasattr(model, "has_variant_profile") and model.has_variant_profile(model.model.file):
+            eff = model.get_for_variant(model.model.file)
+        else:
+            eff = model
+        try:
+            cmd = self._command_builder.build(eff)
+            cmd_str = self._format_command(cmd, multiline=False)
+            QApplication.clipboard().setText(cmd_str)
+            self._log_viewer.append_line(f"[CMD] {cmd_str}")
+            self._log_viewer.append_line(f"[CMD] Copiado al portapapeles — variante {Path(eff.model.file).name} — {eff.server.host}:{eff.server.port}")
+            self._status_bar.setText(f"[CMD] Copiado: {Path(eff.model.file).name}")
+            self._status_bar.setStyleSheet("color: #4caf50; font-size: 10px; background: transparent; border: none; font-weight: bold;")
+            QMessageBox.information(self, "Comando copiado", f"Comando de {name} copiado al portapapeles:\n\n{cmd_str[:800]}{'...' if len(cmd_str) > 800 else ''}")
+        except Exception as e:
+            QMessageBox.warning(self, "Error", f"No se pudo construir el comando:\n{e}")
+
+    def _on_dry_run(self, name: str) -> None:
+        model = self._model_manager.get_by_name(name)
+        if model is None:
+            return
+        if hasattr(model, "get_effective_model"):
+            eff = model.get_effective_model(model.model.file)
+        elif hasattr(model, "has_variant_profile") and model.has_variant_profile(model.model.file):
+            eff = model.get_for_variant(model.model.file)
+        else:
+            eff = model
+        try:
+            cmd = self._command_builder.build(eff)
+            cmd_single = self._format_command(cmd, multiline=False)
+            cmd_multi = self._format_command(cmd, multiline=True)
+            # log multilinea para lectura
+            self._log_viewer.append_line(f"[DRY-RUN] {name} — variante {Path(eff.model.file).name}")
+            for line in cmd_multi.splitlines():
+                self._log_viewer.append_line(f"[DRY-RUN] {line}")
+            dlg = QDialog(self)
+            dlg.setWindowTitle(f"Dry run — {name} [{Path(eff.model.file).name}]")
+            dlg.setMinimumSize(720, 420)
+            layout = QVBoxLayout(dlg)
+            info = QLabel(
+                f"Modelo: <b>{name}</b> — variante <code>{Path(eff.model.file).name}</code><br>"
+                f"Servidor: <code>{eff.server.host}:{eff.server.port}</code> — alias <code>{eff.server.alias}</code><br>"
+                f"Este es el comando <b>exacto</b> que se ejecutaría al hacer <b>Launch</b> (no inicia el modelo).<br>"
+                f"<span style='color:#8a8aaa;'>Un arg por renglón para lectura — copiar deja una sola línea ejecutable.</span>"
+            )
+            info.setStyleSheet("color: #a0a0b8; font-size: 10px; background: transparent; border: none;")
+            info.setWordWrap(True)
+            layout.addWidget(info)
+            edit = QTextEdit()
+            edit.setReadOnly(True)
+            edit.setPlainText(cmd_multi)
+            edit.setStyleSheet("background-color: #1e1e2e; color: #e0e0e0; border: 1px solid #2d2d44; border-radius: 6px; font-family: Consolas, monospace; font-size: 9px;")
+            layout.addWidget(edit)
+            btns = QDialogButtonBox()
+            copy_btn = QPushButton("⧉ Copiar")
+            copy_btn.setToolTip("Copiar comando al portapapeles")
+            launch_btn = QPushButton("▶ Launch")
+            launch_btn.setToolTip("Cerrar este diálogo e iniciar el modelo")
+            launch_btn.setStyleSheet("background-color: #2a4a3a; color: #81c784; border: 1px solid #3a6a4a; border-radius: 6px; padding: 6px 12px; font-weight: bold;")
+            close_btn = QPushButton("Cerrar")
+            btns.addButton(copy_btn, QDialogButtonBox.ButtonRole.ActionRole)
+            btns.addButton(launch_btn, QDialogButtonBox.ButtonRole.ActionRole)
+            btns.addButton(close_btn, QDialogButtonBox.ButtonRole.RejectRole)
+            def _copy():
+                QApplication.clipboard().setText(cmd_single)
+                self._log_viewer.append_line(f"[DRY-RUN] Copiado: {Path(eff.model.file).name}")
+                self._status_bar.setText(f"[DRY-RUN] Copiado: {Path(eff.model.file).name}")
+                self._status_bar.setStyleSheet("color: #4caf50; font-size: 10px; background: transparent; border: none; font-weight: bold;")
+            copy_btn.clicked.connect(_copy)
+            close_btn.clicked.connect(dlg.reject)
+            def _launch():
+                dlg.accept()
+                self._launch_model(name)
+            launch_btn.clicked.connect(_launch)
+            layout.addWidget(btns)
+            dlg.exec()
+        except Exception as e:
+            QMessageBox.warning(self, "Error", f"No se pudo construir el comando:\n{e}")
 
     def _stop_model(self, name: str) -> None:
         self._log_viewer.append_line(f"[System] Deteniendo {name}…")

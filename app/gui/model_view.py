@@ -273,6 +273,8 @@ class ModelCard(QFrame):
     variant_changed = Signal(str, str)  # name, new_file
     edit_variant_profile = Signal(str, str)  # name, variant
     edit_backend_requested = Signal(str)  # name
+    copy_command_clicked = Signal(str)  # name
+    dry_run_clicked = Signal(str)  # name
 
     def __init__(
         self,
@@ -503,6 +505,18 @@ class ModelCard(QFrame):
         self._status_label = QLabel()
         btn_layout.addWidget(self._status_label)
 
+        self._dry_run_btn = QPushButton("👁")
+        self._dry_run_btn.setFixedSize(32, 32)
+        self._dry_run_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self._dry_run_btn.setToolTip("Ver comando — dry run sin iniciar el modelo\nMuestra el comando completo que se ejecutaría al hacer Launch (copiable)")
+        self._dry_run_btn.setStyleSheet(
+            "QPushButton { background-color: #2a2a1a; color: #ffb74d; border: 1px solid #5a4a2a; border-radius: 8px; font-size: 13px; }"
+            "QPushButton:hover { background-color: #3a2a1a; color: #ffcc80; border-color: #8a6a3a; }"
+            "QPushButton:pressed { background-color: #1a1a0a; }"
+        )
+        self._dry_run_btn.clicked.connect(self._on_dry_run)
+        btn_layout.addWidget(self._dry_run_btn)
+
         self._action_btn = QPushButton()
         self._action_btn.setFixedHeight(32)
         self._action_btn.setFixedWidth(110)
@@ -684,6 +698,16 @@ class ModelCard(QFrame):
         if not self._model:
             return
         self.edit_backend_requested.emit(self._model.name)
+
+    def _on_copy_command(self) -> None:
+        if not self._model:
+            return
+        self.copy_command_clicked.emit(self._model.name)
+
+    def _on_dry_run(self) -> None:
+        if not self._model:
+            return
+        self.dry_run_clicked.emit(self._model.name)
 
     def _update_backend_label(self) -> None:
         if not hasattr(self, "_backend_label") or self._backend_label is None or not self._model:
