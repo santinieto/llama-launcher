@@ -97,9 +97,26 @@ gh pr create --title "docs: release process" --body "Closes #4" --base main
 ### 3.5 Merge
 
 * **Squash and merge** (recomendado) → 1 commit limpio en `main`
-* Borrar rama tras merge (GitHub lo ofrece)
+* No hacer merge sin aprobación explícita del usuario (ver `AGENTS.md:12`)
 
-### 3.6 Tag / Release (opcional)
+### 3.6 Borrar rama de desarrollo (obligatorio antes de cerrar tarea)
+
+Una vez mergeado a `main` y verificado el deploy:
+
+```powershell
+# Borrar local y remoto (hacerlo antes de cerrar el issue)
+git checkout main
+git pull origin main
+git branch -d <tipo>/<numero>__<slug>
+git push origin --delete <tipo>/<numero>__<slug>
+# ej: git push origin --delete docs/4__release-process
+```
+
+* Solo borrar tras `PR merged` y `main` actualizado.
+* Este paso es **requisito para cerrar la tarea** en GitHub (checklist del PR).
+* Si el PR se cierra sin merge, borrar igual la rama si no se retomará.
+
+### 3.7 Tag / Release (opcional)
 
 Para cambios user-facing:
 
@@ -147,11 +164,12 @@ Copiar en descripción del PR:
 
 ```markdown
 - [ ] Rama sigue `<tipo>/<numero>__<slug>`
-- [ ] Commit(s) referencian issue (`fixes #N`)
+- [ ] Commit(s) referencian issue (`related to #N` o `fixes #N` solo con aprobación)
 - [ ] `README.md` actualizado si es feature/docs
 - [ ] `.gitignore` respeta binarios pesados (*.gguf, llama.cpp/*.dll)
 - [ ] Test manual: `python -m app.main` inicia y lista modelos
 - [ ] No incluye `*.gguf`, `logs/`, `dist/build/` ni `.cache/`
+- [ ] Tras merge: `git branch -d` + `git push origin --delete` (obligatorio antes de cerrar tarea)
 ```
 
 ---
