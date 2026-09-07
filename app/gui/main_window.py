@@ -5,6 +5,8 @@ from pathlib import Path
 from PySide6.QtCore import Qt, Slot
 from PySide6.QtWidgets import (
     QApplication,
+    QDialog,
+    QDialogButtonBox,
     QFileDialog,
     QFrame,
     QInputDialog,
@@ -14,6 +16,7 @@ from PySide6.QtWidgets import (
     QPushButton,
     QScrollArea,
     QSplitter,
+    QTextEdit,
     QVBoxLayout,
     QWidget,
 )
@@ -369,6 +372,7 @@ class MainWindow(QWidget):
             card.edit_variant_profile.connect(self._on_edit_variant_profile)
             card.edit_backend_requested.connect(self._on_edit_backend)
             card.copy_command_clicked.connect(self._on_copy_command)
+            card.dry_run_clicked.connect(self._on_dry_run)
             self._model_cards[model.name] = card
             self._models_layout.addWidget(card)
 
@@ -486,6 +490,64 @@ class MainWindow(QWidget):
             self._status_bar.setText(f"[CMD] Copiado: {Path(eff.model.file).name}")
             self._status_bar.setStyleSheet("color: #4caf50; font-size: 10px; background: transparent; border: none; font-weight: bold;")
             QMessageBox.information(self, "Comando copiado", f"Comando de {name} copiado al portapapeles:\n\n{cmd_str[:800]}{'...' if len(cmd_str) > 800 else ''}")
+        except Exception as e:
+            QMessageBox.warning(self, "Error", f"No se pudo construir el comando:\n{e}")
+
+    def _on_dry_run(self, name: str) -> None:
+        model = self._model_manager.get_by_name(name)
+        if model is None:
+            return
+        if hasattr(model, "get_effective_model"):
+            eff = model.get_effective_model(model.model.file)
+        elif hasattr(model, "has_variant_profile") and model.has_variant_profile(model.model.file):
+            eff = model.get_for_variant(model.model.file)
+        else:
+            eff = model
+        try:
+            cmd = self._command_builder.build(eff)
+            cmd_str = self._format_command(cmd)
+            self._log_viewer.append_line(f"[DRY-RUN] {name} — variante {Path(eff.model.file).name}")
+            self._log_viewer.append_line(f"[DRY-RUN] {cmd_str}")
+            dlg = QDialog(self)
+            dlg.setWindowTitle(f"Dry run — {name} [{Path(eff.model.file).name}]")
+            dlg.setMinimumSize(720, 380)
+            layout = QVBoxLayout(dlg)
+            info = QLabel(
+                f"Modelo: <b>{name}</b> — variante <code>{Path(eff.model.file).name}</code><br>"
+                f"Servidor: <code>{eff.server.host}:{eff.server.port}</code> — alias <code>{eff.server.alias}</code><br>"
+                f"Este es el comando <b>exacto</b> que se ejecutaría al hacer <b>Launch</b> (no inicia el modelo)."
+            )
+            info.setStyleSheet("color: #a0a0b8; font-size: 10px; background: transparent; border: none;")
+            info.setWordWrap(True)
+            layout.addWidget(info)
+            edit = QTextEdit()
+            edit.setReadOnly(True)
+            edit.setPlainText(cmd_str)
+            edit.setStyleSheet("background-color: #1e1e2e; color: #e0e0e0; border: 1px solid #2d2d44; border-radius: 6px; font-family: Consolas, monospace; font-size: 9px;")
+            layout.addWidget(edit)
+            btns = QDialogButtonBox()
+            copy_btn = QPushButton("⧉ Copiar")
+            copy_btn.setToolTip("Copiar comando al portapapeles")
+            launch_btn = QPushButton("▶ Launch")
+            launch_btn.setToolTip("Cerrar este diálogo e iniciar el modelo")
+            launch_btn.setStyleSheet("background-color: #2a4a3a; color: #81c784; border: 1px solid #3a6a4a; border-radius: 6px; padding: 6px 12px; font-weight: bold;")
+            close_btn = QPushButton("Cerrar")
+            btns.addButton(copy_btn, QDialogButtonBox.ButtonRole.ActionRole)
+            btns.addButton(launch_btn, QDialogButtonBox.ButtonRole.ActionRole)
+            btns.addButton(close_btn, QDialogButtonBox.ButtonRole.RejectRole)
+            def _copy():
+                QApplication.clipboard().setText(cmd_str)
+                self._log_viewer.append_line(f"[DRY-RUN] Copiado: {Path(eff.model.file).name}")
+                self._status_bar.setText(f"[DRY-RUN] Copiado: {Path(eff.model.file).name}")
+                self._status_bar.setStyleSheet("color: #4caf50; font-size: 10px; background: transparent; border: none; font-weight: bold;")
+            copy_btn.clicked.connect(_copy)
+            close_btn.clicked.connect(dlg.reject)
+            def _launch():
+                dlg.accept()
+                self._launch_model(name)
+            launch_btn.clicked.connect(_launch)
+            layout.addWidget(btns)
+            dlg.exec()
         except Exception as e:
             QMessageBox.warning(self, "Error", f"No se pudo construir el comando:\n{e}")
 
