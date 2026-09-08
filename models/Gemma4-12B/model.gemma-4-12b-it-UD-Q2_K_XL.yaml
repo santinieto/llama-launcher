@@ -12,8 +12,9 @@ server:
   alias: Gemma4_12B_gemma_4_12b_it_UD_Q2_K_XL
 hardware:
   gpu_layers: all
-  context_size: 8192
+  context_size: 32768
   batch_size: 1024
+  flash_attention: true
 cache:
   type_k: q4_0
   type_v: q4_0
@@ -37,3 +38,4 @@ advanced:
   parallel: 1
   log_verbosity: 4
   draft_gpu_layers: 0
+  cache_ram: 4096

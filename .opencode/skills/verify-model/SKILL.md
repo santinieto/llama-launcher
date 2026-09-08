@@ -132,12 +132,23 @@ La skill debe reconocer explícitamente que existen configuraciones con distinto
 | 128K q4_0 | 63.7 | 1,587 MiB | -1.7% | = |
 | 65K q4_0 | 62.3 | 2,482 MiB | -4.0% | = |
 
+### Gemma 4 12B (Q4_K_XL, RTX 3070 8GB)
+
+| Config | Context | KV cache | Gen tok/s | VRAM libre |
+|--------|---------|----------|-----------|------------|
+| Baseline | 8K | q4_0 | 39.75 | 489 MiB |
+| **Recomendada** | **32K** | **q4_0** | **39.68** | **358 MiB** |
+| Alternativa | 65K | q4_0 | 39.72 | 119 MiB |
+| Alternativa | 32K | q8_0 | 39.88 | 115 MiB |
+
 ## Hallazgos clave
 
 1. **Reducir contexto 128K→65K NO mejora velocidad** (misma generación tok/s)
-2. **KV cache Q4 es más lento que Q8** (dequantización overhead)
-3. **La calidad es idéntica** en todas las configs (mismo reasoning process)
-4. **65K q8_0 gana 3.5x más VRAM libre** con la misma velocidad
+2. **KV cache Q4 es más lento que Q8** (dequantización overhead) — Agents-A1-4B
+3. **Gemma4: KV q4_0 vs q8_0 sin diferencia** (< 0.5%)
+4. **65K q8_0 gana 3.5x más VRAM libre** con la misma velocidad — Agents-A1-4B
+5. **Gemma4: contexto no afecta generación** (~39.7 tok/s en todas las configs)
+6. **Gemma4: MTP draft incompatible** con build 10549 (error `ctx_other`)
 
 ## Tradeoffs generales
 
