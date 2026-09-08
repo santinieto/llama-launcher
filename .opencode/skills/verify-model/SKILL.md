@@ -119,24 +119,42 @@ La calidad debe preservarse siempre que sea razonable, pero no debe obligar a ut
 
 ---
 
-# 3. Tradeoffs
+# 3. Tradeoffs — Datos medidos (Agents-A1-4B, RTX 3070 8GB)
 
 La skill debe reconocer explícitamente que existen configuraciones con distintos compromisos.
 
-Ejemplos:
+## Datos reales de benchmark (sept 2026)
+
+| Config | Gen tok/s | VRAM libre | Velocidad | Calidad |
+|--------|----------:|----------:|-----------|---------|
+| 128K q8_0 | 64.9 | 565 MiB | Baseline | Baseline |
+| **65K q8_0** | **64.4** | **1,972 MiB** | **=** | **=** |
+| 128K q4_0 | 63.7 | 1,587 MiB | -1.7% | = |
+| 65K q4_0 | 62.3 | 2,482 MiB | -4.0% | = |
+
+## Hallazgos clave
+
+1. **Reducir contexto 128K→65K NO mejora velocidad** (misma generación tok/s)
+2. **KV cache Q4 es más lento que Q8** (dequantización overhead)
+3. **La calidad es idéntica** en todas las configs (mismo reasoning process)
+4. **65K q8_0 gana 3.5x más VRAM libre** con la misma velocidad
+
+## Tradeoffs generales
 
 | Cambio             |       VRAM | RAM |    Velocidad |     Calidad |
 | ------------------ | ---------: | --: | -----------: | ----------: |
 | ↑ GPU layers       |          ↑ |   ↓ |            ↑ |           = |
 | ↓ GPU layers       |          ↓ |   ↑ |            ↓ |           = |
-| ↑ context          |          ↑ |   ↑ |            ↓ | ↑ capacidad |
-| ↓ context          |          ↓ |   ↓ |          ↑/↔ |   ↓ ventana |
-| KV Q8 → Q4         |         ↓↓ |   = |          ↔/↑ |      ↓ leve |
+| ↑ context          |          ↑ |   ↑ |            ↔ | ↑ ventana |
+| ↓ context          |          ↓ |   ↓ |            ↔ | ↓ ventana |
+| KV Q8 → Q4         |         ↓↓ |   = |          ↓ |      = |
 | ↑ batch            |          ↑ |   ↑ | ↑ throughput |           = |
 | ↓ batch            |          ↓ |   ↓ | ↓ throughput |           = |
 | cuantización menor |         ↓↓ |   ↓ |          ↔/↑ |           ↓ |
 | cuantización mayor |         ↑↑ |   ↑ |          ↔/↓ |           ↑ |
 | prompt cache menor | ↓ VRAM/RAM |   ↓ |  ↓ cache hit |           = |
+
+**Nota**: La velocidad de generación depende del tamaño del modelo y memory bandwidth, no del contexto o KV cache. Reducir contexto solo libera VRAM.
 
 No mostrar necesariamente esta tabla en el reporte final.
 
@@ -453,27 +471,34 @@ Impacto normalmente nulo.
 
 ## 12.2 Contexto
 
-Reducir contexto solo cuando sea necesario.
-
-Ejemplo:
+Reducir contexto solo cuando sea necesario para liberar VRAM.
 
 ```text
-131K → 64K
+131K → 65K libera ~1,088 MiB de KV cache
 ```
 
-Puede liberar una cantidad importante de KV cache.
+**Hallazgo importante**: Reducir contexto NO mejora velocidad de generación. La generación tok/s depende del tamaño del modelo y memory bandwidth, no del tamaño del KV cache.
 
 Informar siempre:
 
 ```text
-VRAM ahorrada
-ventana perdida
-impacto esperado en velocidad
+VRAM ahorrada: ~X MiB
+ventana perdida: X tokens
+velocidad: sin cambio significativo
 ```
 
-No afirmar que reducir contexto es una pérdida de calidad por token.
+No afirmar que reducir contexto mejora velocidad.
 
-Es una reducción de capacidad de contexto.
+Es una reducción de capacidad de contexto que libera VRAM.
+
+### Guía de contextos
+
+| Contexto | KV cache (q8_0) | VRAM libre aprox | Uso recomendado |
+|----------|----------------:|-----------------:|-----------------|
+| 32K | ~544 MiB | ~2,500 MiB | Tareas cortas |
+| 65K | ~1,088 MiB | ~1,972 MiB | Uso general (recomendado) |
+| 96K | ~1,632 MiB | ~1,100 MiB | Conversaciones largas |
+| 128K | ~2,176 MiB | ~565 MiB | Sesiones ultra-largas |
 
 ---
 
@@ -487,6 +512,8 @@ Q8_0 → Q6_K → Q5_K → Q4_0
 
 según compatibilidad.
 
+**Hallazgo importante**: Q4_0 es más lento que Q8_0 (dequantización overhead durante attention). Q4_0 libera ~50% del KV cache pero la generación es ~2-4% más lenta.
+
 La skill debe evitar afirmar porcentajes de pérdida de calidad sin evidencia.
 
 En su lugar:
@@ -498,6 +525,15 @@ impacto esperado: bajo / medio / alto
 Si existen benchmarks o documentación específica, utilizarlos.
 
 No recomendar automáticamente `q2`, `iq1` u opciones extremadamente agresivas.
+
+### Datos medidos (Agents-A1-4B)
+
+| KV cache | VRAM KV | Gen tok/s | Velocidad |
+|----------|--------:|----------:|-----------|
+| q8_0 | 2,176 MiB | 64.9 | Baseline |
+| q4_0 | ~1,088 MiB | 63.7 | -1.7% |
+
+**Conclusión**: Q4_0 no mejora velocidad, solo libera VRAM. Usar solo si el modelo no entra con Q8_0.
 
 ---
 
@@ -614,48 +650,110 @@ No asumir que una optimización mejora ambos.
 
 ---
 
-# 15. Benchmark
+# 15. Benchmark — Framework de testing completo
 
-Cuando sea posible, comparar configuración actual vs recomendada.
+Cuando sea posible, ejecutar tests comparativos entre configuraciones.
 
-Registrar:
+## 15.1 Configuraciones a testear
 
-```text
-prompt tokens/s
-generation tokens/s
-VRAM usada
-VRAM libre
-RAM usada
-RAM libre
-context
-gpu layers
-batch
-KV cache
-```
+Probar al menos estas combinaciones:
 
-Distinguir claramente:
+| Config | Contexto | KV cache | Nota |
+|--------|----------|----------|------|
+| Baseline | Actual | Actual | Punto de referencia |
+| Reduced context | 50-75% del actual | Igual | Testea impacto de contexto |
+| Q4 KV | Igual | q4_0 | Testea impacto de cuantización |
+| Mínima | 32K | q4_0 | Máximo ahorro VRAM |
+
+## 15.2 Métricas a capturar por cada config
 
 ```text
-MEDIDO
+VRAM baseline (sin modelo)
+VRAM after load (idle)
+VRAM after inference (active)
+RAM used / free
+Generation tok/s (promedio de 3-5 tests)
+Prompt tok/s (promedio)
 ```
 
-de:
+## 15.3 Tests de calidad (mismos prompts en todas las configs)
+
+```powershell
+# Test matemático
+"What is 15 * 7 + 23? Show your work."
+
+# Test de razonamiento
+"If all roses are flowers, and some flowers fade quickly, can we conclude that some roses fade quickly? Explain step by step."
+
+# Test de instrucción
+"Respond ONLY with a JSON object containing name and age for a person named Juan who is 30 years old. No extra text."
+
+# Test de definición
+"Explain what a neural network is in exactly 3 sentences."
+
+# Test de coding
+"Write a Python function that checks if a string is a palindrome. Include docstring."
+```
+
+## 15.4 API de testing
+
+Usar el endpoint de chat completions:
+
+```powershell
+$body = @{
+    model = "<alias>"
+    messages = @(@{ role="user"; content="<prompt>" })
+    temperature = 0.85
+    top_p = 0.95
+    top_k = 20
+    min_p = 0.0
+    presence_penalty = 1.1
+    repeat_penalty = 1.0
+    max_tokens = 200
+    stream = $false
+} | ConvertTo-Json -Depth 3
+
+$resp = Invoke-RestMethod -Uri "http://127.0.0.1:<port>/v1/chat/completions" `
+    -Method Post -ContentType "application/json" -Body $body
+
+# Métricas
+$resp.timings.prompt_per_second   # Prompt processing
+$resp.timings.predicted_per_second  # Generation
+$resp.choices[0].message.content    # Output (para comparar calidad)
+$resp.choices[0].message.reasoning_content  # Thinking (si reasoning=true)
+```
+
+## 15.5 Tabla comparativa de resultados
+
+Generar tabla al final de los tests:
+
+| Config | Gen tok/s | VRAM libre | Velocidad vs baseline | Calidad |
+|--------|----------:|----------:|----------------------|---------|
+| Baseline (X) | X | X | — | Baseline |
+| Reduced ctx (Y) | Y | Y | +/-% | =/↓ |
+| Q4 KV (Z) | Z | Z | +/-% | =/↓ |
+
+## 15.6 Análisis de calidad
+
+Comparar outputs entre configs:
+- Mismos tokens de razonamiento (thinking process)
+- Mismas respuestas factuales
+- Misma cadena lógica
+- Mismo formato de output
+
+**Regla**: Si los outputs son idénticos o prácticamente idénticos, marcar calidad como "=".
+
+## 15.7 Veredicto
+
+Al final de los tests,给出 una recomendación clara:
 
 ```text
-ESTIMADO
+RECOMENDACIÓN: <config> es la mejor porque...
+- Velocidad: X tok/s (vs Y tok/s baseline)
+- VRAM: X MiB libres (vs Y MiB baseline)
+- Calidad: idéntica / ↓ leve / ↓ significativa
+- Ventana: X tokens (suficiente para / limitada para...)
 ```
-
-No inventar porcentajes.
-
-Si no existe benchmark, utilizar lenguaje como:
-
-```text
-probablemente
-esperado
-potencialmente
-```
-
-en lugar de valores exactos.
 
 ---
 

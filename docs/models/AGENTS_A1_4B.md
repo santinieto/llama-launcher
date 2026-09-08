@@ -159,7 +159,7 @@ Ver `models/AgentsA1-4B/model.yaml`.
 
 | Setting | Valor | Notas |
 |---------|-------|-------|
-| context_size | 131072 | 128K ( modelo soporta 262K) |
+| context_size | 65536 | 65K (modelo soporta 262K, optimizado para VRAM) |
 | gpu_layers | all | 33/33 en GPU |
 | batch_size | 2048 | |
 | micro_batch | 512 | |
@@ -173,10 +173,10 @@ Ver `models/AgentsA1-4B/model.yaml`.
 | Estado | Usada | Libre | Nota |
 |--------|------:|------:|------|
 | Baseline (sin modelo) | ~1,063 MiB | ~7,128 MiB | Antes de cargar |
-| Modelo idle | ~2,245 MiB | ~5,774 MiB | Cargado, sin requests |
-| En inferencia | ~7,453 MiB | ~566 MiB | Durante generación activa |
+| Modelo idle | ~1,700 MiB | ~6,300 MiB | Cargado, sin requests |
+| En inferencia | ~6,047 MiB | ~1,972 MiB | Durante generación activa |
 
-**VRAM real del modelo**: ~6,390 MiB (incluye KV cache dinámico)
+**VRAM real del modelo**: ~4,984 MiB (incluye KV cache dinámico)
 
 ### RAM medida
 
@@ -188,11 +188,24 @@ Ver `models/AgentsA1-4B/model.yaml`.
 
 | Test | Prompt tok/s | Generation tok/s | Tokens |
 |------|------------:|-----------------:|--------|
-| Simple (2+2) | 215.7 | 73.5 | 260+100 |
-| Medio (relatividad) | 57.3 | 65.6 | 21+200 |
-| Largo (análisis IA) | 144.3 | 63.9 | 48+300 |
+| Matemática | 788.8 | 68.5 | 268+150 |
+| Razonamiento | 462.0 | 63.8 | 36+200 |
+| Instrucción | 454.1 | 63.6 | 37+100 |
+| Definición | 300.2 | 63.1 | 23+150 |
+| Coding | 345.1 | 62.9 | 27+200 |
 
-**Promedio generation**: ~67 tok/s
+**Promedio generation**: ~64.4 tok/s
+
+### Comparación de configuraciones (benchmark sept 2026)
+
+| Config | Gen tok/s | VRAM libre | Velocidad | Calidad |
+|--------|----------:|----------:|-----------|---------|
+| 128K q8_0 (anterior) | 64.9 | 565 MiB | Baseline | Baseline |
+| **65K q8_0 (actual)** | **64.4** | **1,972 MiB** | **=** | **=** |
+| 128K q4_0 | 63.7 | 1,587 MiB | -1.7% | = |
+| 65K q4_0 | 62.3 | 2,482 MiB | -4.0% | = |
+
+**Conclusión**: 65K q8_0 es la configuración óptima. Misma velocidad que 128K, 3.5x más VRAM libre, calidad idéntica.
 
 ---
 

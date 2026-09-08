@@ -29,15 +29,15 @@ Referencia del hardware disponible para desarrollo y ejecución de modelos local
 | Arch | Ampere (GA104) |
 | TGP | ~80-100 W (varía según modo) |
 
-### VRAM — utilización medida con Agents-A1-4B Q4_K_M
+### VRAM — utilización medida con Agents-A1-4B Q4_K_M (65K ctx, q8_0)
 
 | Estado | Usada | Libre | Nota |
 |--------|------:|------:|------|
 | Baseline (sin modelo) | ~1,063 MiB | ~7,128 MiB | Sistema idle |
-| Modelo idle | ~2,245 MiB | ~5,774 MiB | Cargado, sin requests |
-| En inferencia | ~7,453 MiB | ~566 MiB | Durante generación |
+| Modelo idle | ~1,700 MiB | ~6,300 MiB | Cargado, sin requests |
+| En inferencia | ~6,047 MiB | ~1,972 MiB | Durante generación |
 
-**VRAM real del modelo**: ~6,390 MiB
+**VRAM real del modelo**: ~4,984 MiB
 
 ### Clasificación de margen VRAM
 
