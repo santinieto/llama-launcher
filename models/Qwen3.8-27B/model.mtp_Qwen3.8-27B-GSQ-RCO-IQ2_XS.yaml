@@ -1,5 +1,5 @@
 name: Qwen3.8-27B (Qwen3.8-27B-GSQ-RCO-IQ2_XS)
-description: ''
+description: 'IQ2_XS (2.5 BPW) — modelo 27B, prueba de viabilidad en 8GB VRAM'
 backend:
   type: llama.cpp
 model:
@@ -10,8 +10,8 @@ server:
   port: 18765
   alias: Qwen3.8_27B_Qwen3.8_27B_GSQ_RCO_IQ2_XS
 hardware:
-  gpu_layers: 61
-  context_size: 8192
+  gpu_layers: 45
+  context_size: 4096
   batch_size: 2048
 cache:
   type_k: q4_0
@@ -24,7 +24,7 @@ capabilities:
   tool_calling: false
 advanced:
   reasoning: false
-  cache_ram: 4096
+  cache_ram: 2048
 speculative:
   enabled: false
   spec_type: draft-mtp
