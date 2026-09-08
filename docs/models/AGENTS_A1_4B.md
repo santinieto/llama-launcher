@@ -215,13 +215,10 @@ Ver `models/AgentsA1-4B/model.yaml`.
 
 | Cuantización | Tamaño | Link |
 |-------------|--------|------|
-| Q4_K_M | 2.88 GB | [InternScience/Agents-A1-4B-Q4_K_M-GGUF](https://huggingface.co/InternScience/Agents-A1-4B-Q4_K_M-GGUF) |
-| Q5_K_M | 3.32 GB | [bartowski/InternScience_Agents-A1-4B-GGUF](https://huggingface.co/bartowski/InternScience_Agents-A1-4B-GGUF) |
-| Q6_K | 3.68 GB | [bartowski/InternScience_Agents-A1-4B-GGUF](https://huggingface.co/bartowski/InternScience_Agents-A1-4B-GGUF) |
-| Q8_0 | 4.49 GB | [InternScience/Agents-A1-4B-Q8_0-GGUF](https://huggingface.co/InternScience/Agents-A1-4B-Q8_0-GGUF) |
-| BF16 | 8.42 GB | [InternScience/Agents-A1-4B-F16-GGUF](https://huggingface.co/InternScience/Agents-A1-4B-F16-GGUF) |
+| Q4_K_M | 2.71 GB | [InternScience/Agents-A1-4B-Q4_K_M-GGUF](https://huggingface.co/InternScience/Agents-A1-4B-Q4_K_M-GGUF) |
+| Q8_0 | 4.48 GB | [InternScience/Agents-A1-4B-Q8_0-GGUF](https://huggingface.co/InternScience/Agents-A1-4B-Q8_0-GGUF) |
 
-> **Nota**: Para el modelo de **35B** (MoE), ver [InternScience/Agents-A1-Q4_K_M-GGUF](https://huggingface.co/InternScience/Agents-A1-Q4_K_M-GGUF).
+> **Nota**: Solo existen estas 2 cuantizaciones oficiales para el modelo 4B. Para más opciones, ver el modelo de **35B** en [InternScience/Agents-A1-Q4_K_M-GGUF](https://huggingface.co/InternScience/Agents-A1-Q4_K_M-GGUF).
 
 ### Variantes en esta instalación
 
