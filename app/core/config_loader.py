@@ -87,6 +87,7 @@ def _parse_hardware(raw: dict[str, Any] | None) -> HardwareConfig:
         batch_size=raw.get("batch_size", 2048),
         threads=raw.get("threads", 0),
         micro_batch=raw.get("micro_batch", 0),
+        tensor_split=raw.get("tensor_split", ""),
     )
 
 

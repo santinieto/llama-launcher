@@ -16,8 +16,10 @@ server:
 
 hardware:
   gpu_layers: all
-  context_size: 8192
+  context_size: 32768   # Q4: 358 MiB libre, max contexto seguro
   batch_size: 1024
+  flash_attention: true
+  tensor_split: "1"
 
 cache:
   type_k: q4_0
@@ -46,4 +48,4 @@ advanced:
   parallel: 1
   log_verbosity: 4
   draft_gpu_layers: 0
-
+  cache_ram: 4096

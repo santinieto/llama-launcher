@@ -132,12 +132,44 @@ La skill debe reconocer explícitamente que existen configuraciones con distinto
 | 128K q4_0 | 63.7 | 1,587 MiB | -1.7% | = |
 | 65K q4_0 | 62.3 | 2,482 MiB | -4.0% | = |
 
+### Gemma 4 12B (Q4_K_XL, RTX 3070 8GB)
+
+| Config | Context | KV cache | Gen tok/s | VRAM libre |
+|--------|---------|----------|-----------|------------|
+| Baseline | 8K | q4_0 | 39.75 | 489 MiB |
+| **Recomendada** | **32K** | **q4_0** | **39.68** | **358 MiB** |
+| Alternativa | 65K | q4_0 | 39.72 | 119 MiB |
+| Alternativa | 32K | q8_0 | 39.88 | 115 MiB |
+
+### Gemma 4 12B — Contexto óptimo por variante
+
+| Variante | Tamaño | Contexto óptimo | VRAM libre | Nota |
+|----------|--------|-----------------|------------|------|
+| Q4_K_XL (QAT) | 6.4 GB | 32K | 358 MiB | Mejor calidad |
+| Q3_K_XL | 5.7 GB | 65K | 445 MiB | Balance |
+| Q2_K_XL | 4.4 GB | 128K | 1088 MiB | ⚠️ Loops en código |
+
+### Gemma 4 12B — Q2_K_XL looping
+
+**Problema**: Q2 entra en loops infinitos al generar código o patrones repetitivos.
+
+**Se probó sin éxito**:
+- `repeat_penalty: 1.0` → loop
+- `repeat_penalty: 1.2` → loop
+- `repeat_penalty: 1.2` + `presence_penalty: 0.2` + `min_p: 0.05` → loop
+- Cache `q8_0` en vez de `q4_0` → loop
+
+**Conclusión**: Q2 pierde demasiada calidad para generación estructurada. **No recomendar Q2 para código.** Usar Q3 o Q4.
+
 ## Hallazgos clave
 
 1. **Reducir contexto 128K→65K NO mejora velocidad** (misma generación tok/s)
-2. **KV cache Q4 es más lento que Q8** (dequantización overhead)
-3. **La calidad es idéntica** en todas las configs (mismo reasoning process)
-4. **65K q8_0 gana 3.5x más VRAM libre** con la misma velocidad
+2. **KV cache Q4 es más lento que Q8** (dequantización overhead) — Agents-A1-4B
+3. **Gemma4: KV q4_0 vs q8_0 sin diferencia** (< 0.5%)
+4. **65K q8_0 gana 3.5x más VRAM libre** con la misma velocidad — Agents-A1-4B
+5. **Gemma4: contexto no afecta generación** (~39.7 tok/s en todas las configs)
+6. **Gemma4: MTP draft funciona** con workaround `tensor_split: "1"` (bug #24795)
+7. **Gemma4 con MTP**: 46.6 tok/s vs 39.7 sin MTP (+17%)
 
 ## Tradeoffs generales
 
@@ -150,6 +182,7 @@ La skill debe reconocer explícitamente que existen configuraciones con distinto
 | KV Q8 → Q4         |         ↓↓ |   = |          ↓ |      = |
 | ↑ batch            |          ↑ |   ↑ | ↑ throughput |           = |
 | ↓ batch            |          ↓ |   ↓ | ↓ throughput |           = |
+| tensor_split "1"   |          = |   = |            = |           = |
 | cuantización menor |         ↓↓ |   ↓ |          ↔/↑ |           ↓ |
 | cuantización mayor |         ↑↑ |   ↑ |          ↔/↓ |           ↑ |
 | prompt cache menor | ↓ VRAM/RAM |   ↓ |  ↓ cache hit |           = |
@@ -786,6 +819,18 @@ Q6 > Q5 > Q4
 
 como regla absoluta.
 
+### Contexto óptimo por variante
+
+Diferentes cuantizaciones del mismo modelo pueden requerir contextos distintos. Ejemplo medido (Gemma4-12B):
+
+| Variante | VRAM modelo | Contexto óptimo | VRAM libre |
+|----------|-------------|-----------------|------------|
+| Q4 | 6.4 GB | 32K | 358 MiB |
+| Q3 | 5.7 GB | 65K | 445 MiB |
+| Q2 | 4.4 GB | 128K | 1088 MiB |
+
+**Regla**: Cuantizaciones más agresivas permiten contextos mayores pero pueden degradar calidad. Verificar siempre que la variante funcione correctamente para el caso de uso (código, conversación, etc).
+
 Por ejemplo, si:
 
 ```text
@@ -829,6 +874,10 @@ Puede investigar opciones como:
 * `--no-mmap`;
 * `--split-mode`;
 * `--offload-kqv`;
+* `--tensor-split`;
+* `--spec-draft-model`;
+* `--spec-type`;
+* `--spec-draft-ngl`;
 * `--rope-freq-base`;
 * `--rope-freq-scale`;
 * `--swa-*`;
@@ -843,6 +892,10 @@ Antes de recomendar una opción:
 5. evaluar VRAM;
 6. evaluar velocidad;
 7. evaluar posibles efectos sobre calidad/compatibilidad.
+
+### Workaround bug #24795 — Draft MTP
+
+El uso de `--spec-draft-model` (MTP) puede causar crash con `invalid vector submarino` cuando CUDA reporta 0 bytes de VRAM libre. Workaround: `tensor_split: "1"` en YAML. No afecta rendimiento ni distribución de capas.
 
 Nunca asumir que una opción tiene un impacto fijo.
 

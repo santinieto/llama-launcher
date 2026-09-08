@@ -66,6 +66,9 @@ class CommandBuilder:
         if hw.micro_batch > 0:
             args.extend(["-ub", str(hw.micro_batch)])
 
+        if hw.tensor_split:
+            args.extend(["--tensor-split", hw.tensor_split])
+
         adv = model.advanced
 
         if adv.reasoning:
