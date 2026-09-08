@@ -18,6 +18,7 @@ hardware:
   gpu_layers: all
   context_size: 131070
   batch_size: 2048
+  flash_attention: false
 
 cache:
   type_k: q4_0
