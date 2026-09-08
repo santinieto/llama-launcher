@@ -1,14 +1,14 @@
-name: Qwen 3.8 9B (Qwen3.8-9B-Q5_K_M)
+name: Qwen 3.8 9B (Qwen3.8-9B-Q4_K_M)
 description: Qwen 3.8 9B
 backend:
   type: llama.cpp
 model:
-  file: Qwen3.8-9B-Q5_K_M.gguf
+  file: Qwen3.8-9B-Q4_K_M.gguf
   format: gguf
 server:
   host: 127.0.0.1
   port: 18765
-  alias: Qwen3.8_9B_Qwen3.8_9B_Q5_K_M
+  alias: Qwen3.8_9B_Qwen3.8_9B_Q4_K_M
 hardware:
   gpu_layers: all
   context_size: 32768

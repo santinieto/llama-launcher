@@ -211,15 +211,14 @@ Ver `models/AgentsA1-4B/model.yaml`.
 
 ## 8. Disponibilidad GGUF
 
-Quantizaciones disponibles en [Agents-A1 collection](https://huggingface.co/collections/InternScience/agents-a1):
+### Links de descarga por cuantización
 
-- Q4_K_M (esta variante)
-- Q4_K_XL
-- IQ4_NL
-- Q5_K_M
-- Q6_K
-- Q8_0
-- Otros (ver collection)
+| Cuantización | Tamaño | Link |
+|-------------|--------|------|
+| Q4_K_M | 2.71 GB | [InternScience/Agents-A1-4B-Q4_K_M-GGUF](https://huggingface.co/InternScience/Agents-A1-4B-Q4_K_M-GGUF) |
+| Q8_0 | 4.48 GB | [InternScience/Agents-A1-4B-Q8_0-GGUF](https://huggingface.co/InternScience/Agents-A1-4B-Q8_0-GGUF) |
+
+> **Nota**: Solo existen estas 2 cuantizaciones oficiales para el modelo 4B. Para más opciones, ver el modelo de **35B** en [InternScience/Agents-A1-Q4_K_M-GGUF](https://huggingface.co/InternScience/Agents-A1-Q4_K_M-GGUF).
 
 ### Variantes en esta instalación
 

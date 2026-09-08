@@ -161,6 +161,19 @@ La skill debe reconocer explícitamente que existen configuraciones con distinto
 
 **Conclusión**: Q2 pierde demasiada calidad para generación estructurada. **No recomendar Q2 para código.** Usar Q3 o Q4.
 
+### Qwen 3.8 9B (RTX 3070 8GB)
+
+| Variante | Context | KV cache | Gen tok/s | VRAM libre | Estado |
+|----------|---------|----------|-----------|------------|--------|
+| **Q4_K_M** | **32K** | **q8_0** | **38.83** | **1595 MiB** | **🟢** |
+| Q4_K_M | 65K | q8_0 | 38.80 | 891 MiB | 🟠 |
+| Q4_K_M | 65K | q4_0 | 37.87 | 1394 MiB | 🟢 |
+| **Q5_K_M** | **32K** | **q8_0** | **34.24** | **906 MiB** | **🟢** |
+| Q5_K_M | 65K | q8_0 | 34.28 | 224 MiB | 🔴 |
+| Q5_K_M | 65K | q4_0 | 34.16 | 736 MiB | 🟠 |
+
+**Conclusión Qwen3.8-9B**: Q4_K_M es 12% más rápido que Q5_K_M y deja mucho más margen de VRAM. Contexto no afecta velocidad. Usar 32K para ambos.
+
 ## Hallazgos clave
 
 1. **Reducir contexto 128K→65K NO mejora velocidad** (misma generación tok/s)
@@ -170,6 +183,9 @@ La skill debe reconocer explícitamente que existen configuraciones con distinto
 5. **Gemma4: contexto no afecta generación** (~39.7 tok/s en todas las configs)
 6. **Gemma4: MTP draft funciona** con workaround `tensor_split: "1"` (bug #24795)
 7. **Gemma4 con MTP**: 46.6 tok/s vs 39.7 sin MTP (+17%)
+8. **Qwen3.8-9B: Q4_K_M es 12% más rápido que Q5_K_M** (38.8 vs 34.2 tok/s)
+9. **Qwen3.8-9B: contexto no afecta generación** (misma tok/s en 32K y 65K)
+10. **`--flash-attn` ahora requiere valor**: Usar `-fa on` en vez de `--flash-attn`
 
 ## Tradeoffs generales
 
@@ -728,6 +744,49 @@ Prompt tok/s (promedio)
 "Write a Python function that checks if a string is a palindrome. Include docstring."
 ```
 
+## 15.3.1 Tests de inteligencia básica
+
+Estos tests miden capacidades fundamentales del modelo. Ejecutarlos una vez por modelo (no por config) para establecer un baseline de calidad.
+
+```powershell
+# Test de conocimiento factual (2 preguntas)
+"What is the capital of Australia? What year did humans first land on the Moon?"
+
+# Test de razonamiento multi-paso
+"If I have 3 shirts and 4 pants, and I wear a different combination each day, how many days can I dress without repeating? Explain your reasoning step by step."
+
+# Test de código con manejo de errores
+"Write a Python function that takes a list of numbers and returns the average. It must handle empty lists (return 0) and ignore strings in the list. Include type hints."
+
+# Test de seguimiento de formato estricto
+"Respond with EXACTLY a numbered list of 3 European countries. Only the list, nothing else."
+
+# Test de razonamiento con herramientas
+"I need to check the current dollar price and the temperature in Buenos Aires. What tools would you use and in what order? Explain your plan."
+```
+
+### Criterios de evaluación por test
+
+| Test | ✅ Pass | ⚠️ Partial | ❌ Fail |
+|------|---------|-----------|---------|
+| Factual | Ambas respuestas correctas | 1 correcta | 0 correctas |
+| Multi-paso | Razonamiento correcto + respuesta correcta | Respuesta correcta sin razonamiento | Respuesta incorrecta |
+| Código | Funciona + maneja edge cases + type hints | Funciona pero falta algo | No funciona o errores |
+| Formato | Solo lista numerada, 3 items | Lista pero con texto extra | No sigue formato |
+| Tool reasoning | Plan lógico con herramientas correctas | Plan parcial | No entiende la tarea |
+
+### Scoring
+
+- ✅ = 1 punto
+- ⚠️ = 0.5 puntos
+- ❌ = 0 puntos
+
+**Total**: /5 puntos
+- 4.5-5: 🟢 Excelente
+- 3.5-4: 🟢 Bueno
+- 2.5-3.5: 🟠 Aceptable
+- <2.5: 🔴 Degradado
+
 ## 15.4 API de testing
 
 Usar el endpoint de chat completions:
@@ -775,6 +834,30 @@ Comparar outputs entre configs:
 - Mismo formato de output
 
 **Regla**: Si los outputs son idénticos o prácticamente idénticos, marcar calidad como "=".
+
+### Evaluación de inteligencia (una vez por modelo)
+
+Ejecutar los tests de 15.3.1 y registrar resultados:
+
+```text
+Intelligence Check: <modelo> <cuantización>
+- Factual: ✅/⚠️/❌ (respuestas: ...)
+- Multi-paso: ✅/⚠️/❌ (razonamiento: ...)
+- Código: ✅/⚠️/❌ (funciona: sí/no)
+- Formato: ✅/⚠️/❌ (sigue instrucciones: sí/no)
+- Tool reasoning: ✅/⚠️/❌ (plan: ...)
+- Score: X/5
+```
+
+**IMPORTANTE**: El score de inteligencia es por **modelo + cuantización**, no por config de contexto/KV. Si el score cae significativamente entre configs del mismo modelo, indicar degradación por configuración.
+
+Comparar inteligencia entre modelos (misma cuantización aproximada):
+
+| Modelo | Cuantización | Score | Nota |
+|--------|-------------|-------|------|
+| Agents-A1-4B | Q4_K_M | X/5 | ... |
+| Gemma4-12B | Q4_K_XL | X/5 | ... |
+| Qwen3.8-9B | Q4_K_M | X/5 | ... |
 
 ## 15.7 Veredicto
 
@@ -1063,6 +1146,20 @@ Recomendación: mantener Q4_K_M + 61 GPU layers + 64K context.
 Motivo:
 Es la configuración más rápida encontrada que mantiene
 ≥500 MiB de VRAM libre y RAM en zona segura.
+```
+
+### Intelligence Check
+
+Solo incluir si se ejecutaron los tests de inteligencia (15.3.1):
+
+```text
+Intelligence Check: Qwen3.8-9B Q4_K_M
+- Factual: ✅ (Canberra, 1969)
+- Multi-paso: ✅ (12 combinaciones, razonamiento correcto)
+- Código: ✅ (funciona, maneja empty list, type hints)
+- Formato: ✅ (solo lista numerada)
+- Tool reasoning: ✅ (plan lógico)
+- Score: 5/5 🟢
 ```
 
 ### Cambios

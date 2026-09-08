@@ -10,7 +10,10 @@ _nextn_cache: dict[str, bool] = {}
 
 
 def _gguf_supports_integrated_mtp(path: Path) -> bool:
-    """Detecta si un GGUF tiene soporte MTP integrado buscando tensor 'nextn'.
+    """Detecta si un GGUF tiene soporte MTP integrado buscando tensors reales.
+
+    Busca 'blk.0.mtp' (tensor real de MTP) en vez de solo 'nextn' que puede
+    aparecer como metadata sin tensors MTP reales (ej: qwen35.nextn_predict_layers).
 
     Lee solo los primeros 8MB para evitar cargar archivos grandes.
     Se cachea por path.
@@ -24,8 +27,9 @@ def _gguf_supports_integrated_mtp(path: Path) -> bool:
             return False
         with open(path, "rb") as f:
             data = f.read(8_000_000)
-        # 'nextn' es el nombre del tensor de MTP integrado en Qwen3/Qwen3.5
-        has = b"nextn" in data
+        # Buscar tensor real de MTP: 'blk.0.mtp' o 'blk.1.mtp' etc.
+        # 'nextn' solo como metadata no indica MTP real
+        has = b"blk.0.mtp" in data or b"blk.1.mtp" in data
         _nextn_cache[key] = has
         return has
     except Exception:

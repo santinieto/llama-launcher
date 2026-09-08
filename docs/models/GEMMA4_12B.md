@@ -27,11 +27,22 @@
 
 ## Variantes GGUF
 
-| Variante | Tamaño | BPW | Calidad |
-|----------|--------|-----|---------|
-| UD-Q4_K_XL (QAT) | 6,405 MB | 4.50 | Mejor calidad |
-| UD-Q3_K_XL | 5,744 MB | — | Intermedia |
-| UD-Q2_K_XL | 4,446 MB | — | Menor calidad |
+### Links de descarga por cuantización
+
+| Variante | Tamaño | BPW | Calidad | Link |
+|----------|--------|-----|---------|------|
+| UD-Q4_K_XL (QAT) | 6,405 MB | 4.50 | Mejor calidad | [unsloth/gemma-4-12B-it-qat-GGUF](https://huggingface.co/unsloth/gemma-4-12B-it-qat-GGUF) |
+| UD-Q3_K_XL | 5,744 MB | — | Intermedia | [unsloth/gemma-4-12b-it-GGUF](https://huggingface.co/unsloth/gemma-4-12b-it-GGUF) |
+| UD-Q2_K_XL | 4,446 MB | — | Menor calidad | [unsloth/gemma-4-12b-it-GGUF](https://huggingface.co/unsloth/gemma-4-12b-it-GGUF) |
+| MTP draft | 422 MB | — | Draft model | [unsloth/gemma-4-12b-it-GGUF](https://huggingface.co/unsloth/gemma-4-12b-it-GGUF) |
+
+### Otros repositorios GGUF
+
+| Repo | Nota |
+|------|------|
+| [ggml-org/gemma-4-12B-it-GGUF](https://huggingface.co/ggml-org/gemma-4-12B-it-GGUF) | Oficial llama.cpp |
+| [bartowski/gemma-4-12B-it-GGUF](https://huggingface.co/bartowski/gemma-4-12B-it-GGUF) | Múltiples quants |
+| [lmstudio-community/gemma-4-12B-it-GGUF](https://huggingface.co/lmstudio-community/gemma-4-12B-it-GGUF) | LM Studio community |
 
 ## Hardware de referencia
 
