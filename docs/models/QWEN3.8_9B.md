@@ -5,11 +5,13 @@
 | Propiedad | Valor |
 |-----------|-------|
 | Parámetros | 9B |
+| Arquitectura | Qwen3.5 (híbrida Gated DeltaNet) |
 | Contexto máximo | 128K |
 | Cuantizaciones | Q4_K_M (5.38 GB), Q5_K_M (6.19 GB) |
 | Flash Attention | Sí |
 | Reasoning | Sí (thinking) |
 | Vision | No |
+| MTP | No |
 
 ## Variantes disponibles
 
@@ -115,3 +117,4 @@ sampling:
 ## Problemas conocidos
 
 1. **`--flash-attn` requiere valor**: Usar `-fa on` en vez de `--flash-attn` (cambio reciente en llama.cpp)
+2. **Sin MTP**: A pesar de tener metadata `qwen35.nextn_predict_layers`, no tiene tensores MTP reales. No soporta `--spec-draft-model` con draft externo. La UI debe mostrar "MTP: No".
