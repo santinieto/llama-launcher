@@ -29,12 +29,15 @@ Referencia del hardware disponible para desarrollo y ejecución de modelos local
 | Arch | Ampere (GA104) |
 | TGP | ~80-100 W (varía según modo) |
 
-### VRAM — utilización típica con llama.cpp
+### VRAM — utilización medida con Agents-A1-4B Q4_K_M
 
-| Modelo | VRAM usada | VRAM libre | Estado |
-|--------|----------:|----------:|--------|
-| Agents-A1-4B Q4_K_M (128K ctx) | ~4,712 MiB | ~3,480 MiB | 🟢 |
-| Qwen3.5-35B-A3B Q4_K_M | ~6,500 MiB | ~1,700 MiB | 🟠 |
+| Estado | Usada | Libre | Nota |
+|--------|------:|------:|------|
+| Baseline (sin modelo) | ~1,063 MiB | ~7,128 MiB | Sistema idle |
+| Modelo idle | ~2,245 MiB | ~5,774 MiB | Cargado, sin requests |
+| En inferencia | ~7,453 MiB | ~566 MiB | Durante generación |
+
+**VRAM real del modelo**: ~6,390 MiB
 
 ### Clasificación de margen VRAM
 
