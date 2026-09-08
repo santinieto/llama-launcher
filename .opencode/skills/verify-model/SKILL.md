@@ -148,7 +148,8 @@ La skill debe reconocer explícitamente que existen configuraciones con distinto
 3. **Gemma4: KV q4_0 vs q8_0 sin diferencia** (< 0.5%)
 4. **65K q8_0 gana 3.5x más VRAM libre** con la misma velocidad — Agents-A1-4B
 5. **Gemma4: contexto no afecta generación** (~39.7 tok/s en todas las configs)
-6. **Gemma4: MTP draft incompatible** con build 10549 (error `ctx_other`)
+6. **Gemma4: MTP draft funciona** con workaround `tensor_split: "1"` (bug #24795)
+7. **Gemma4 con MTP**: 46.6 tok/s vs 39.7 sin MTP (+17%)
 
 ## Tradeoffs generales
 

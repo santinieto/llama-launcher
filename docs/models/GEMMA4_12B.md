@@ -72,21 +72,33 @@
 ## Configuración recomendada
 
 ```yaml
+model:
+  file: gemma-4-12B-it-qat-UD-Q4_K_XL.gguf
+  draft_model: mtp-gemma-4-12B-it.gguf
+
 hardware:
   gpu_layers: all
   context_size: 32768    # 4x más que baseline, VRAM cómoda
   batch_size: 1024
   flash_attention: true  # Auto-habilitado con KV cuantizado
+  tensor_split: "1"      # Workaround bug #24795 (NaN en tensor-split)
 
 cache:
   type_k: q4_0          # Óptimo para VRAM
   type_v: q4_0
+  type_k_draft: q4_0
+  type_v_draft: q4_0
+
+speculative:
+  enabled: true
+  spec_type: draft-mtp
+  draft_n_max: 4
 
 advanced:
   reasoning: true
   parallel: 1
   log_verbosity: 4
-  draft_gpu_layers: 0   # Draft en CPU (MTP incompatible)
+  draft_gpu_layers: 0   # Draft en CPU (ahorra VRAM)
   cache_ram: 4096       # Prompt cache habilitado
 ```
 
@@ -118,8 +130,13 @@ sampling:
   repeat_penalty: 1.0
 ```
 
+### Draft MTP (Multi-Token Prediction)
+
+- **Workaround**: `tensor_split: "1"` en YAML (evita bug NaN en cálculo de free memory, issue #24795)
+- **Speedup**: 39.7 → 46.6 tok/s (+17%)
+- **Draft model**: `mtp-gemma-4-12B-it.gguf` (422.86M params, 4 blocks)
+- **Acceptance rate**: ~25-30% (mean len 1.7-2.1)
+
 ## Problemas conocidos
 
-1. **Draft MTP**: `Gemma4Assistant requires ctx_other` — incompatible con build 10549
-2. **Warning tokens**: `<|tool_response>` y `</s>` generan warnings (bug del modelo)
-3. **Speculative types**: `spec_type: draft-mtp` no funciona, pero no bloquea carga
+1. **Warning tokens**: `<|tool_response>` y `</s>` generan warnings (bug del modelo, no afecta funcionamiento)

@@ -19,6 +19,7 @@ hardware:
   context_size: 32768
   batch_size: 1024
   flash_attention: true
+  tensor_split: "1"
 
 cache:
   type_k: q4_0
@@ -48,4 +49,3 @@ advanced:
   log_verbosity: 4
   draft_gpu_layers: 0
   cache_ram: 4096
-

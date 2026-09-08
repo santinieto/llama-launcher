@@ -77,6 +77,7 @@ class HardwareConfig:
     batch_size: int = 2048
     threads: int = 0
     micro_batch: int = 0
+    tensor_split: str = ""
 
 
 @dataclass(slots=True)

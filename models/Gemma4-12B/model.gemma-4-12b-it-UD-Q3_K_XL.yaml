@@ -15,6 +15,7 @@ hardware:
   context_size: 32768
   batch_size: 1024
   flash_attention: true
+  tensor_split: "1"
 cache:
   type_k: q4_0
   type_v: q4_0
