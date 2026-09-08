@@ -134,7 +134,9 @@ advanced:
 | Más calidad KV | 32K q8_0 | 115 MiB | = |
 | Más margen | 16K | ~500 MiB | = |
 
-## Sampling (Google oficial)
+## Sampling
+
+### Q4_K_XL / Q3_K_XL (Google oficial)
 
 ```yaml
 sampling:
@@ -146,6 +148,20 @@ sampling:
   repeat_penalty: 1.0
 ```
 
+### Q2_K_XL (configuración anti-loop)
+
+```yaml
+sampling:
+  temperature: 1.0
+  top_p: 0.95
+  top_k: 64
+  min_p: 0.05          # Filtra tokens con prob < 5%
+  presence_penalty: 0.2  # Penaliza tokens ya usados
+  repeat_penalty: 1.2   # Penalización fuerte
+```
+
+**Nota**: Incluso con esta configuración y `cache q8_0`, Q2 sigue haciendo loop en código. La cuantización Q2 pierde demasiada calidad para generación estructurada.
+
 ### Draft MTP (Multi-Token Prediction)
 
 - **Workaround**: `tensor_split: "1"` en YAML (evita bug NaN en cálculo de free memory, issue #24795)
@@ -156,3 +172,4 @@ sampling:
 ## Problemas conocidos
 
 1. **Warning tokens**: `<|tool_response>` y `</s>` generan warnings (bug del modelo, no afecta funcionamiento)
+2. **Q2_K_XL loops en código**: La variante Q2 entra en loops infinitos al generar código o patrones repetitivos. Se probó con `repeat_penalty: 1.2`, `presence_penalty: 0.2`, `min_p: 0.05`, y `cache q8_0` — el problema persiste. **No recomendada para generación de código.** Usar Q3 o Q4 para estas tareas.
