@@ -15,7 +15,7 @@
 
 | Variante | Tamaño | YAML | Contexto óptimo |
 |----------|--------|------|-----------------|
-| Q4_K_M | 5.38 GB | `model.yaml` | 32K |
+| Q4_K_M | 5.38 GB | `model.Qwen3.8-9B-Q4_K_M.yaml` | 32K |
 | Q5_K_M | 6.19 GB | `model.Qwen3.8-9B-Q5_K_M.yaml` | 32K |
 
 ## Benchmarks (RTX 3070 Laptop 8GB, sept 2026)
