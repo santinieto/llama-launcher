@@ -13,6 +13,21 @@ Las preguntas estan diseñadas para modelos de 7-8B parametros — son desafiant
 
 **Nota**: Las preguntas son en inglés porque el evaluador verifica respuestas en inglés. El modelo debe responder en inglés para obtener una evaluacion precisa.
 
+### FORZAR RESPUESTA EN INGLES
+
+El sistema DEBE forzar que el modelo responda en inglés. Esto es CRITICO para que el evaluador funcione correctamente. Se hace de dos formas:
+
+1. **System prompt**: Enviar un mensaje de sistema que instruya al modelo a responder SIEMPRE en inglés:
+   ```
+   You are an AI assistant. ALWAYS respond in English. Do not respond in any other language.
+   ```
+
+2. **User prompt instruction**: Agregar "Answer in English only." al final de cada pregunta:
+   ```
+   <question text> Answer in English only.
+   ```
+
+Si el modelo responde en otro idioma, la evaluacion ser incorrecta y los scores ser artificialmente bajos. Verificar siempre las respuestas antes de evaluar.
 
 ---
 
@@ -355,13 +370,29 @@ python benchmarks/run_benchmark.py
 
 ```python
 import urllib.request, json
-body = json.dumps({"model": "<alias>", "messages": [{"role": "user", "content": "<prompt>"}], "temperature": 0.7, "max_tokens": 500, "stream": False}).encode()
+
+# System prompt to force English responses (CRITICAL for correct evaluation)
+SYSTEM_PROMPT = "You are an AI assistant. ALWAYS respond in English. Do not respond in any other language."
+
+body = json.dumps({
+    "model": "<alias>",
+    "messages": [
+        {"role": "system", "content": SYSTEM_PROMPT},
+        {"role": "user", "content": "<prompt> Answer in English only."}
+    ],
+    "temperature": 0.7,
+    "max_tokens": 500,
+    "stream": False
+}).encode()
+
 req = urllib.request.Request("http://127.0.0.1:<port>/v1/chat/completions", data=body, headers={"Content-Type": "application/json"})
 resp = urllib.request.urlopen(req, timeout=120)
 data = json.loads(resp.read())
 response = data["choices"][0]["message"]["content"]
 tok_s = data.get("timings", {}).get("predicted_per_second", 0)
 ```
+
+**IMPORTANT**: The system prompt and "Answer in English only." instruction MUST be included. Without them, the model may respond in Spanish or other languages, making the evaluation incorrect.
 
 ## 4.5 Generar reporte
 
