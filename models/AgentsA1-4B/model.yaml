@@ -64,4 +64,5 @@ vision:
   image_min_tokens: 1024
 advanced:
   reasoning: true
-  ncmoe: 25
+  flash_attention: true
+  cache_ram: 8192
