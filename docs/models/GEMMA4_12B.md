@@ -40,51 +40,66 @@
 - **RAM**: 32 GB DDR5-4800
 - **Build**: llama.cpp 10549
 
-## Benchmark (Q4_K_XL, RTX 3070)
+## Benchmark (RTX 3070, con MTP + tensor_split)
 
-### Generación tok/s por configuración
+### Contexto óptimo por variante
 
-| Config | Context | KV cache | Gen tok/s | VRAM libre |
-|--------|---------|----------|-----------|------------|
-| Baseline | 8K | q4_0 | 39.75 | 489 MiB |
-| **Recomendada** | **32K** | **q4_0** | **39.68** | **358 MiB** |
-| Alternativa | 65K | q4_0 | 39.72 | 119 MiB |
-| Alternativa | 32K | q8_0 | 39.88 | 115 MiB |
+| Variante | Tamaño | Contexto óptimo | VRAM usada | VRAM libre | Gen tok/s |
+|----------|--------|-----------------|------------|------------|-----------|
+| **Q4_K_XL (QAT)** | 6.4 GB | **32K** | 7661 MiB | 358 MiB | ~40 |
+| **Q3_K_XL** | 5.7 GB | **65K** | 7574 MiB | 445 MiB | ~45 |
+| **Q2_K_XL** | 4.4 GB | **128K** | 6931 MiB | 1088 MiB | ~43 |
 
-### Tests de calidad (promedio 5 tests × 2 runs)
+### VRAM por contexto (Q4_K_XL)
 
-| Config | greeting | reasoning | coding | summarize | analysis |
-|--------|----------|-----------|--------|-----------|----------|
-| 8K q4_0 | 41.36 | 40.09 | 39.07 | 38.92 | 39.31 |
-| 32K q4_0 | 40.08 | 39.04 | 39.52 | 39.74 | 40.03 |
-| 65K q4_0 | 40.22 | 39.42 | 39.42 | 39.69 | 39.84 |
-| 32K q8_0 | 39.87 | 39.52 | 39.89 | 40.16 | 39.96 |
+| Contexto | VRAM libre | Assesssment |
+|----------|------------|-------------|
+| 8K | 489 MiB | Baseline, cómodo |
+| **32K** | **358 MiB** | **Recomendado** |
+| 65K | 119 MiB | Funciona pero justo |
+
+### Tests de calidad (Q4_K_XL, promedio 5 tests × 2 runs)
+
+| Contexto | greeting | reasoning | coding | summarize | analysis |
+|----------|----------|-----------|--------|-----------|----------|
+| 8K | 41.36 | 40.09 | 39.07 | 38.92 | 39.31 |
+| 32K | 40.08 | 39.04 | 39.52 | 39.74 | 40.03 |
+| 65K | 40.22 | 39.42 | 39.42 | 39.69 | 39.84 |
 
 ### Hallazgos clave
 
-1. **Velocidad constante**: ~39.7 tok/s sin importar contexto o KV type
-2. **Contexto no afecta generación**: 8K = 32K = 65K en velocidad
-3. **KV q4_0 vs q8_0**: Diferencia irrelevante en velocidad (< 0.5%)
-4. **VRAM del modelo**: ~6.4 GiB (Q4_K_XL, 49/49 layers GPU)
-5. **VRAM KV cache**: ~13 MiB extra por cada 4K de contexto (SWA layers)
-6. **Draft MTP**: No funciona — requiere build más reciente
+1. **Menor cuantización = más VRAM libre = más contexto posible**
+2. **Contexto no afecta generación**: misma velocidad en todos los contextos
+3. **KV q4_0 vs q8_0**: Diferencia irrelevante (< 0.5%)
+4. **Q2_K_XL soporta 128K** con 1088 MiB libre (mejor para documentos largos)
+5. **Q4_K_XL mejor calidad** pero limitado a32K en 8GB VRAM
 
 ## Configuración recomendada
 
+Cada variante tiene su contexto óptimo según VRAM disponible:
+
+| Variante | context_size | Justificación |
+|----------|-------------|---------------|
+| Q4_K_XL | 32768 | 358 MiB libre, mejor calidad |
+| Q3_K_XL | 65536 | 445 MiB libre, balance calidad/ventana |
+| Q2_K_XL | 131072 | 1088 MiB libre, contexto completo |
+
+Config base (misma para todas las variantes, solo cambia `context_size`):
+
 ```yaml
 model:
-  file: gemma-4-12B-it-qat-UD-Q4_K_XL.gguf
+  file: <variante>.gguf
   draft_model: mtp-gemma-4-12B-it.gguf
 
 hardware:
   gpu_layers: all
-  context_size: 32768    # 4x más que baseline, VRAM cómoda
+  context_size: <ver tabla>
   batch_size: 1024
-  flash_attention: true  # Auto-habilitado con KV cuantizado
-  tensor_split: "1"      # Workaround bug #24795 (NaN en tensor-split)
+  flash_attention: true
+  tensor_split: "1"      # Workaround bug #24795
 
 cache:
-  type_k: q4_0          # Óptimo para VRAM
+  type_k: q4_0
   type_v: q4_0
   type_k_draft: q4_0
   type_v_draft: q4_0
@@ -104,10 +119,11 @@ advanced:
 
 ### Justificación
 
-- **32K context**: 4x más ventana que 8K con solo -131 MiB VRAM extra
-- **q4_0 KV**: Mejor relación VRAM/calidad para8GB
-- **flash_attention**: Requerido para KV cuantizado, mejora eficiencia
-- **draft_gpu_layers: 0**: Draft model en CPU (MTP incompatible con build actual)
+- **Per-variante**: Cada quantización usa VRAM diferente,因此 contexto óptimo varía
+- **q4_0 KV**: Mejor relación VRAM/calidad en todas las variantes
+- **flash_attention**: Requerido para KV cuantizado
+- **tensor_split: "1"**: Workaround para bug #24795 (NaN en tensor-split)
+- **draft_gpu_layers: 0**: Draft en CPU (ahorra ~227 MiB VRAM)
 - **cache_ram: 4096**: Prompt cache para conversaciones multi-turn
 
 ### Tradeoffs

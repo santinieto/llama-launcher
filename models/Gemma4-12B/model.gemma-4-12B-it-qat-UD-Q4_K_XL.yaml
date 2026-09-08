@@ -16,7 +16,7 @@ server:
 
 hardware:
   gpu_layers: all
-  context_size: 32768
+  context_size: 32768   # Q4: 358 MiB libre, max contexto seguro
   batch_size: 1024
   flash_attention: true
   tensor_split: "1"

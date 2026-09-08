@@ -12,7 +12,7 @@ server:
   alias: Gemma4_12B_gemma_4_12b_it_UD_Q3_K_XL
 hardware:
   gpu_layers: all
-  context_size: 32768
+  context_size: 65536   # Q3: 445 MiB libre, puede mas que Q4
   batch_size: 1024
   flash_attention: true
   tensor_split: "1"
