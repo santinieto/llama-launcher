@@ -44,7 +44,7 @@ server:
   alias: Agents-A1-4B
 hardware:
   gpu_layers: all
-  context_size: 131072
+  context_size: 65536
   batch_size: 2048
   micro_batch: 512
 cache:
@@ -64,4 +64,5 @@ vision:
   image_min_tokens: 1024
 advanced:
   reasoning: true
-  ncmoe: 25
+  flash_attention: true
+  cache_ram: 8192
