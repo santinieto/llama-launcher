@@ -161,6 +161,19 @@ La skill debe reconocer explícitamente que existen configuraciones con distinto
 
 **Conclusión**: Q2 pierde demasiada calidad para generación estructurada. **No recomendar Q2 para código.** Usar Q3 o Q4.
 
+### Qwen 3.8 9B (RTX 3070 8GB)
+
+| Variante | Context | KV cache | Gen tok/s | VRAM libre | Estado |
+|----------|---------|----------|-----------|------------|--------|
+| **Q4_K_M** | **32K** | **q8_0** | **38.83** | **1595 MiB** | **🟢** |
+| Q4_K_M | 65K | q8_0 | 38.80 | 891 MiB | 🟠 |
+| Q4_K_M | 65K | q4_0 | 37.87 | 1394 MiB | 🟢 |
+| **Q5_K_M** | **32K** | **q8_0** | **34.24** | **906 MiB** | **🟢** |
+| Q5_K_M | 65K | q8_0 | 34.28 | 224 MiB | 🔴 |
+| Q5_K_M | 65K | q4_0 | 34.16 | 736 MiB | 🟠 |
+
+**Conclusión Qwen3.8-9B**: Q4_K_M es 12% más rápido que Q5_K_M y deja mucho más margen de VRAM. Contexto no afecta velocidad. Usar 32K para ambos.
+
 ## Hallazgos clave
 
 1. **Reducir contexto 128K→65K NO mejora velocidad** (misma generación tok/s)
@@ -170,6 +183,9 @@ La skill debe reconocer explícitamente que existen configuraciones con distinto
 5. **Gemma4: contexto no afecta generación** (~39.7 tok/s en todas las configs)
 6. **Gemma4: MTP draft funciona** con workaround `tensor_split: "1"` (bug #24795)
 7. **Gemma4 con MTP**: 46.6 tok/s vs 39.7 sin MTP (+17%)
+8. **Qwen3.8-9B: Q4_K_M es 12% más rápido que Q5_K_M** (38.8 vs 34.2 tok/s)
+9. **Qwen3.8-9B: contexto no afecta generación** (misma tok/s en 32K y 65K)
+10. **`--flash-attn` ahora requiere valor**: Usar `-fa on` en vez de `--flash-attn`
 
 ## Tradeoffs generales
 
