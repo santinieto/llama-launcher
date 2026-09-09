@@ -114,7 +114,6 @@ nomtp Q4_K_M, 64K context, KV q4_0
 
 ```
 models/Qwen3.5-9B/
-├── model.yaml                          (base → nomtp Q4_K_M, 64K)
 ├── model.nomtp_Qwen3.5-9B-Q4_K_M.yaml (64K)
 ├── model.nomtp_Qwen3.5-9B-UD-Q2_K_XL.yaml (64K)
 ├── model.mtp_Qwen3.5-9B-Q4_K_M.yaml   (32K)
@@ -128,6 +127,8 @@ models/Qwen3.5-9B/
         ├── Qwen3.5-9B-Q4_K_M.gguf
         └── Qwen3.5-9B-Q3_K_M.gguf
 ```
+
+**Nota**: No existe model.yaml base. Cada variante tiene su propio YAML per-variante.
 
 ---
 
