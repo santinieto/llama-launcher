@@ -16,20 +16,20 @@ server:
 
 hardware:
   gpu_layers: all
-  context_size: 131070
-  batch_size: 2048
+  context_size: 65536
+  batch_size: 4096
   flash_attention: false
 
 cache:
-  type_k: q4_0
-  type_v: q4_0
-  type_k_draft: q4_0
-  type_v_draft: q4_0
+  type_k: q8_0
+  type_v: f16
+  type_k_draft: q8_0
+  type_v_draft: f16
 
 speculative:
   enabled: true
   spec_type: draft-mtp
-  draft_n_max: 3
+  draft_n_max: 2
 
 sampling:
   temperature: 1.0
@@ -44,10 +44,11 @@ capabilities:
 
 vision:
   encoder: mmproj-F16.gguf
-  image_min_tokens: 1024
+  image_min_tokens: 0
 
 advanced:
   reasoning: true
   parallel: 1
   log_verbosity: 4
+  cache_ram: 8192
 
