@@ -1363,6 +1363,7 @@ https://github.com/ggml-org/llama.cpp
 * No utilizar cuantizaciones extremadamente agresivas como primera opción.
 * No realizar cambios cosméticos que no mejoren estabilidad, memoria o rendimiento.
 * No pedir confirmación: ejecutar el análisis completo sobre el modelo cargado y proponer cambios concretos.
+* **Ejecución secuencial obligatoria**: Solo puede haber UN proceso `llama-server.exe` corriendo a la vez. Antes de iniciar un nuevo modelo, verificar que no existan otros procesos con `Get-CimInstance Win32_Process -Filter "Name='llama-server.exe'"` y detenerlos si existen. Esto aplica para benchmarks comparativos y cambios de configuración.
 
 ---
 
