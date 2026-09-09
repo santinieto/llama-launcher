@@ -3,248 +3,248 @@ import json
 import urllib.request
 import time
 import sys
+import argparse
+from pathlib import Path
 
-# Force UTF-8 output
 sys.stdout.reconfigure(encoding='utf-8')
 
-MODEL = "Gemma4-E4B"
-PORT = 18765
-BASE_URL = f"http://127.0.0.1:{PORT}/v1/chat/completions"
+BENCHMARK_DIR = Path(__file__).parent
+DATASET_PATH = BENCHMARK_DIR / "dataset" / "benchmark_dataset.json"
+RESULTS_DIR = BENCHMARK_DIR / "results"
 
-benchmarks = [
-    # Logic (5) - Multi-step reasoning
-    {"id": "logic_1", "cat": "Logic", "prompt": "A father is currently 4 times as old as his son. In 20 years, the father will be twice as old as his son. How old is the son now? Show your work.", "max": 5},
-    {"id": "logic_2", "cat": "Logic", "prompt": "In a room, there are 3 boxes. Box A contains only apples. Box B contains only oranges. Box C contains a mix of apples and oranges. All boxes are labeled incorrectly. You can pick one fruit from one box without looking. What is the minimum number of picks needed to correctly label all boxes, and which box do you pick from?", "max": 5},
-    {"id": "logic_3", "cat": "Logic", "prompt": "Five people finished a race. Alice finished before Bob but after Carol. Dave finished before Eve but after Bob. Carol did not finish first. Who finished first? Explain your reasoning.", "max": 5},
-    {"id": "logic_4", "cat": "Logic", "prompt": "A sequence follows this rule: each term after the first is obtained by multiplying the previous term by 2 and then subtracting 3. If the first term is 5, what is the fourth term? Show each step.", "max": 5},
-    {"id": "logic_5", "cat": "Logic", "prompt": "If all mathematicians are logical thinkers, and some logical thinkers are poets, which of the following must be true? (a) Some mathematicians are poets. (b) Some poets are logical thinkers. (c) All poets are mathematicians. (d) No mathematicians are poets. Explain your answer.", "max": 5},
-    # Knowledge (5) - Specific and challenging
-    {"id": "knowledge_1", "cat": "Knowledge", "prompt": "What is the difference between nuclear fission and nuclear fusion in terms of energy output, fuel requirements, and practical applications today? Which process currently generates commercial electricity?", "max": 5},
-    {"id": "knowledge_2", "cat": "Knowledge", "prompt": "Explain the difference between TCP and UDP protocols. In what scenarios would you choose UDP over TCP despite its lack of reliability guarantees?", "max": 5},
-    {"id": "knowledge_3", "cat": "Knowledge", "prompt": "What is the Heisenberg Uncertainty Principle? Why does it not apply to macroscopic objects in everyday life, and what fundamental limit does it impose on measurement?", "max": 5},
-    {"id": "knowledge_4", "cat": "Knowledge", "prompt": "Describe the difference between supervised, unsupervised, and reinforcement learning with one concrete example for each. What makes semi-supervised learning useful?", "max": 5},
-    {"id": "knowledge_5", "cat": "Knowledge", "prompt": "What are the primary differences between mitosis and meiosis? How many daughter cells does each produce, and what is the ploidy of each? Why is meiosis essential for sexual reproduction?", "max": 5},
-    # Reading (5) - Complex passages with inference
-    {"id": "reading_1", "cat": "Reading", "prompt": "Read this passage: 'The Industrial Revolution, beginning in Britain in the late 18th century, fundamentally transformed manufacturing processes. While it increased productivity dramatically, it also led to significant social upheaval, including urbanization, child labor, and environmental degradation. The shift from agrarian economies to industrial ones created new class structures and altered family dynamics.' Based on this passage, what can we infer about the relationship between economic development and social welfare during this period?", "max": 5},
-    {"id": "reading_2", "cat": "Reading", "prompt": "Read this passage: 'Quantum computing leverages quantum mechanical phenomena such as superposition and entanglement to perform computations. Unlike classical bits that exist in states 0 or 1, qubits can exist in a superposition of both states simultaneously. This property theoretically allows quantum computers to solve certain problems exponentially faster than classical computers.' What are the two main quantum phenomena described, and what practical advantage do they theoretically provide?", "max": 5},
-    {"id": "reading_3", "cat": "Reading", "prompt": "Read this passage: 'The Marshall Plan, officially the European Recovery Program, was an American initiative passed in 1948 to provide foreign aid to Western Europe. The United States transferred over $12 billion (equivalent to approximately $130 billion in 2023) in economic recovery programs to help rebuild war-torn regions, remove trade barriers, modernize industry, and prevent the spread of communism.' What was the primary strategic objective of the Marshall Plan, and what was its secondary humanitarian goal?", "max": 5},
-    {"id": "reading_4", "cat": "Reading", "prompt": "Read this passage: 'CRISPR-Cas9 is a revolutionary genome editing technology that allows scientists to precisely alter DNA sequences. The system uses a guide RNA to locate the target DNA sequence and the Cas9 enzyme to make a double-strand break. The cell's natural repair mechanisms then either disable a gene or insert new genetic material.' What are the three main components of the CRISPR-Cas9 system, and what is the critical limitation that researchers still face with this technology?", "max": 5},
-    {"id": "reading_5", "cat": "Reading", "prompt": "Read this passage: 'The concept of dark matter was first proposed by Swiss astronomer Fritz Zwicky in 1933 when he observed that galaxies in the Coma Cluster were moving faster than expected based on visible mass alone. Current estimates suggest that dark matter constitutes approximately 27% of the universe's mass-energy content, while ordinary matter makes up only about 5%.' What evidence initially led to the dark matter hypothesis, and why is it called 'dark' matter?", "max": 5},
-    # Math (5) - More complex
-    {"id": "math_1", "cat": "Math", "prompt": "A cylindrical tank has a radius of 7 meters and a height of 10 meters. It is being filled with water at a rate of 3 cubic meters per minute. How long will it take to fill the tank to 80% of its capacity? (Use pi = 3.14159). Show your solution.", "max": 5},
-    {"id": "math_2", "cat": "Math", "prompt": "A company offers two payment plans for a sales position: Plan A gives a base salary of $3000 plus 5% commission on sales. Plan B gives a base salary of $2000 plus 8% commission on sales. At what sales amount do both plans pay the same? What is that payment amount? For sales above this amount, which plan is better?", "max": 5},
-    {"id": "math_3", "cat": "Math", "prompt": "In a standard deck of 52 cards, what is the probability of drawing exactly 2 aces when drawing 5 cards without replacement? Show the combinatorial calculation. Express your answer as a fraction and as a percentage.", "max": 5},
-    {"id": "math_4", "cat": "Math", "prompt": "Solve the following system of equations for x and y: 3x + 2y = 17 and 5x - 4y = 1. Verify your answer by substituting back into both equations.", "max": 5},
-    {"id": "math_5", "cat": "Math", "prompt": "A ball is thrown upward from a height of 50 meters with an initial velocity of 20 m/s. Using the formula h(t) = -4.9t^2 + 20t + 50, at what time does the ball hit the ground? How high does it go above the initial launch point?", "max": 5},
-    # Code (5) - More complex
-    {"id": "code_1", "cat": "Code", "prompt": "Implement a Python class called LRUCache with a fixed capacity that supports get(key) and put(key, value) operations in O(1) time complexity. Use an appropriate data structure combination and explain your design choices.", "max": 5},
-    {"id": "code_2", "cat": "Code", "prompt": "Write a Python function that takes a list of integers and returns all unique triplets that sum to zero. The solution must not contain duplicate triplets. What is the time complexity of your approach? For example: given nums = [-1,0,1,2,-1,-4], the solution is [[-1,-1,2],[-1,0,1]].", "max": 5},
-    {"id": "code_3", "cat": "Code", "prompt": "Explain the difference between a race condition and a deadlock in concurrent programming. Provide a concrete code example of each and describe how you would prevent them.", "max": 5},
-    {"id": "code_4", "cat": "Code", "prompt": "Write a SQL query that finds customers who have placed orders in the last 30 days AND have a total order value exceeding $1000, but who have never placed an order in the 'Electronics' category. Assume tables: customers(id, name), orders(id, customer_id, total, order_date, category).", "max": 5},
-    {"id": "code_5", "cat": "Code", "prompt": "Implement a binary search tree in Python with insert, delete, and find operations. Include an in-order traversal method that returns sorted values. What is the worst-case time complexity for each operation and why?", "max": 5},
-    # Creative (3) - More nuanced
-    {"id": "creative_1", "cat": "Creative", "prompt": "Write a short story (100-200 words) where the main character discovers that their reflection in a mirror has been living a different life than they have. The story should have an unexpected twist ending and convey a philosophical theme about identity.", "max": 3},
-    {"id": "creative_2", "cat": "Creative", "prompt": "Design a hypothetical app that helps people overcome procrastination using behavioral psychology principles. Describe the core features, the psychological mechanisms it leverages, and why each feature would be effective.", "max": 3},
-    {"id": "creative_3", "cat": "Creative", "prompt": "Write a Python one-liner (or as few lines as possible) that generates the first 20 Fibonacci numbers using recursion with memoization. The code must be clean, efficient, and well-documented with comments explaining how it works.", "max": 3},
-]
+DETERMINISTIC_CATEGORIES = {"logic", "math", "code", "knowledge"}
+CREATIVE_CATEGORIES = {"creative", "reading"}
 
-# English evaluation logic
-def evaluate(response, qid, cat, mx):
-    rl = response.lower().strip()
-    if cat == "Logic":
-        if qid == "logic_1":
-            # son age: 4x + 20 = 2(x+20) -> 4x+20 = 2x+40 -> 2x=20 -> x=10
-            return 1.0 if any(x in rl for x in ["10", "ten"]) and ("years" in rl or "old" in rl) else 0.5 if any(x in rl for x in ["10", "ten"]) else 0.0
-        if qid == "logic_2":
-            # minimum picks = 1, pick from mixed box C
-            return 1.0 if ("1" in rl or "one" in rl) and ("c" in rl or "mixed" in rl or "combination" in rl or "mix" in rl or "box c" in rl or "box labeled" in rl) else 0.5 if ("1" in rl or "one" in rl) else 0.0
-        if qid == "logic_3":
-            # Alice > Bob, Carol > Alice, Bob > Dave, Dave > Eve, Carol not first
-            # Carol > Alice > Bob > Dave > Eve, Carol not first -> contradiction
-            # Actually: Carol > Alice > Bob, Bob > Dave > Eve, Carol not first -> someone else first
-            return 1.0 if "first" in rl else 0.5 if "alice" in rl or "bob" in rl or "carol" in rl else 0.0
-        if qid == "logic_4":
-            # a1=5, a2=5*2-3=7, a3=7*2-3=11, a4=11*2-3=19
-            return 1.0 if "19" in rl else 0.0
-        if qid == "logic_5":
-            # Some logical thinkers are poets doesn't mean all poets or some mathematicians
-            return 1.0 if "(b)" in rl or "some poets are logical thinkers" in rl or "poets are logical" in rl else 0.5 if "b" in rl else 0.0
-    if cat == "Knowledge":
-        if qid == "knowledge_1":
-            return 1.0 if ("fission" in rl or "fusion" in rl) and ("commercial" in rl or "electricity" in rl) else 0.5 if any(w in rl for w in ["fission", "fusion", "nuclear"]) else 0.0
-        if qid == "knowledge_2":
-            return 1.0 if ("tcp" in rl or "udp" in rl) and ("reliable" in rl or "streaming" in rl or "gaming" in rl) else 0.5 if any(w in rl for w in ["tcp", "udp"]) else 0.0
-        if qid == "knowledge_3":
-            return 1.0 if ("uncertainty" in rl or "heisenberg" in rl) and ("macroscopic" in rl or "measurement" in rl) else 0.5 if any(w in rl for w in ["uncertainty", "heisenberg"]) else 0.0
-        if qid == "knowledge_4":
-            return 1.0 if ("supervised" in rl or "unsupervised" in rl or "reinforcement" in rl) and ("semi" in rl or "example" in rl) else 0.5 if any(w in rl for w in ["supervised", "unsupervised", "reinforcement"]) else 0.0
-        if qid == "knowledge_5":
-            return 1.0 if ("mitosis" in rl or "meiosis" in rl) and ("daughter" in rl or "ploidy" in rl or "haploid" in rl) else 0.5 if any(w in rl for w in ["mitosis", "meiosis"]) else 0.0
-    if cat == "Reading":
-        if qid == "reading_1":
-            return 1.0 if ("social" in rl or "welfare" in rl or "upheaval" in rl or "class" in rl) and "inference" in rl else 0.5 if any(w in rl for w in ["social", "welfare", "upheaval", "class", "inference"]) else 0.0
-        if qid == "reading_2":
-            return 1.0 if ("superposition" in rl or "entanglement" in rl) and "exponentially" in rl else 0.5 if any(w in rl for w in ["superposition", "entanglement"]) else 0.0
-        if qid == "reading_3":
-            return 1.0 if ("communism" in rl or "strategic" in rl or "rebuild" in rl) and "humanitarian" in rl else 0.5 if any(w in rl for w in ["communism", "rebuild", "strategy"]) else 0.0
-        if qid == "reading_4":
-            return 1.0 if ("guide" in rl and "cas9" in rl) or ("rna" in rl and "enzyme" in rl) else 0.5 if any(w in rl for w in ["crispr", "guide", "cas9"]) else 0.0
-        if qid == "reading_5":
-            return 1.0 if ("zwicky" in rl or "coma" in rl) and ("visible" in rl or "mass" in rl) else 0.5 if any(w in rl for w in ["dark", "matter"]) else 0.0
-    if cat == "Math":
-        if qid == "math_1":
-            # pi*r^2*h = 3.14159*49*10 = 1539.4 m3, 80% = 1231.5, /3 = ~410.5 min
-            return 1.0 if any(x in rl for x in ["410", "411"]) else 0.5 if ("pi" in rl or "cylinder" in rl) else 0.0
-        if qid == "math_2":
-            # 3000+0.05x = 2000+0.08x -> 1000 = 0.03x -> x = 33333.33
-            return 1.0 if "33333" in rl or "33333" in rl else 0.5 if any(w in rl for w in ["3000", "2000", "commission"]) else 0.0
-        if qid == "math_3":
-            # C(4,2)*C(48,3)/C(52,5) = 6*17296/2598960 = 103776/2598960 = 0.0399 or 3.99%
-            return 1.0 if any(x in rl for x in ["0.04", "0.039", "3.99", "4%"]) else 0.5 if any(w in rl for w in ["probability", "deck", "ace"]) else 0.0
-        if qid == "math_4":
-            # 3x+2y=17, 5x-4y=1 -> x=3, y=4
-            return 1.0 if "x = 3" in rl or ("3" in rl and "4" in rl and "y" in rl) else 0.0
-        if qid == "math_5":
-            # h(t)=-4.9t^2+20t+50=0 -> t = (-20 ± sqrt(400+980))/(-9.8) = (-20 ± sqrt(1380))/(-9.8)
-            # sqrt(1380)=37.15 -> t = (20+37.15)/9.8 = 5.83s or t = (20-37.15)/-9.8 = -1.75s (discard)
-            return 1.0 if any(x in rl for x in ["5.8", "5.7", "5.9"]) else 0.5 if any(w in rl for w in ["quadratic", "formula", "ground"]) else 0.0
-    if cat == "Code":
-        if qid == "code_1":
-            return 1.0 if ("lrucache" in rl or "dict" in rl) and ("o(1)" in rl or "constant" in rl) else 0.5 if any(w in rl for w in ["cache", "lru", "dict"]) else 0.0
-        if qid == "code_2":
-            return 1.0 if "triplet" in rl and "zero" in rl else 0.5 if any(w in rl for w in ["triplet", "triplets"]) else 0.0
-        if qid == "code_3":
-            return 1.0 if ("race" in rl and "deadlock" in rl) else 0.5 if any(w in rl for w in ["race", "deadlock"]) else 0.0
-        if qid == "code_4":
-            return 1.0 if "select" in rl and "30" in rl and "never" in rl and "electronics" in rl else 0.5 if "select" in rl else 0.0
-        if qid == "code_5":
-            return 1.0 if ("binary" in rl or "bst" in rl) and ("o(log" in rl or "logarithmic" in rl) else 0.5 if any(w in rl for w in ["binary", "search", "tree"]) else 0.0
-    if cat == "Creative":
-        # More nuanced evaluation
-        return 1.0 if len(response.strip()) > 50 else 0.5 if len(response.strip()) > 20 else 0.0
-    return 0.5
 
-results = []
-gen_times = []
+def load_dataset():
+    with open(DATASET_PATH, "r", encoding="utf-8") as f:
+        return json.load(f)
 
-print("=" * 60)
-print("BENCHMARK: Gemma 4 E4B (English)")
-print("=" * 60)
-print(f"Total questions: {len(benchmarks)}")
-print()
 
-for i, q in enumerate(benchmarks):
-    print(f"[{i+1}/{len(benchmarks)}] {q['id']} ({q['cat']})")
-    print(f"  Prompt: {q['prompt'][:80]}...")
-    SYSTEM_PROMPT = "You are an AI assistant. ALWAYS respond in English. Do not respond in any other language."
+def build_raw_header(model_name, port, max_tokens, dataset_version, runtime_config):
+    return {
+        "benchmark": {
+            "name": "local-model-benchmark",
+            "version": dataset_version,
+            "dataset": str(DATASET_PATH.name)
+        },
+        "model": {
+            "name": model_name,
+            "port": port,
+            "endpoint": f"http://127.0.0.1:{port}/v1/chat/completions"
+        },
+        "runtime": {
+            "backend": runtime_config.get("backend", "llama.cpp"),
+            "max_tokens": max_tokens,
+            "context_size": runtime_config.get("context_size", 0),
+            "quantization": runtime_config.get("quantization", "unknown"),
+            "gpu_layers": runtime_config.get("gpu_layers", "unknown"),
+            "batch_size": runtime_config.get("batch_size", 0),
+            "temperature_by_category": {
+                cat: 0.0 for cat in DETERMINISTIC_CATEGORIES
+            } | {cat: 0.7 for cat in CREATIVE_CATEGORIES}
+        },
+        "timestamp_start": time.strftime("%Y-%m-%dT%H:%M:%S"),
+        "timestamp_end": None,
+        "total_questions": 0,
+        "questions": []
+    }
+
+
+def save_incremental(output_path, raw_data):
+    with open(output_path, "w", encoding="utf-8") as f:
+        json.dump(raw_data, f, indent=2, ensure_ascii=False)
+
+
+def get_temperature(category):
+    if category in DETERMINISTIC_CATEGORIES:
+        return 0.0
+    return 0.7
+
+
+def generate_response(base_url, model, messages, temperature, max_tokens, timeout=120):
     body = {
-        "model": MODEL,
-        "messages": [
-            {"role": "system", "content": SYSTEM_PROMPT},
-            {"role": "user", "content": q["prompt"] + " Answer in English only."}
-        ],
-        "temperature": 0.7,
-        "max_tokens": 500,
+        "model": model,
+        "messages": messages,
+        "temperature": temperature,
         "stream": False
     }
-    response = ""
-    data = None
-    for attempt in range(3):
-        try:
-            req = urllib.request.Request(BASE_URL, data=json.dumps(body).encode(), headers={"Content-Type": "application/json"})
-            with urllib.request.urlopen(req, timeout=120) as resp:
-                data = json.loads(resp.read())
-                response = data["choices"][0]["message"]["content"]
-                if response and response.strip():
+    if max_tokens > 0:
+        body["max_tokens"] = max_tokens
+    req = urllib.request.Request(
+        base_url,
+        data=json.dumps(body).encode(),
+        headers={"Content-Type": "application/json"}
+    )
+    with urllib.request.urlopen(req, timeout=timeout) as resp:
+        return json.loads(resp.read())
+
+
+def extract_metrics(data):
+    usage = data.get("usage", {})
+    timings = data.get("timings", {})
+    prompt_tokens = usage.get("prompt_tokens", timings.get("prompt_n", 0))
+    completion_tokens = usage.get("completion_tokens", timings.get("predicted_n", 0))
+    generation_time = timings.get("predicted_ms", 0) / 1000.0
+    tok_s = timings.get("predicted_per_second", 0)
+    return {
+        "prompt_tokens": prompt_tokens,
+        "completion_tokens": completion_tokens,
+        "generation_time_s": round(generation_time, 3),
+        "tokens_per_second": round(tok_s, 2) if tok_s else 0
+    }
+
+
+def run_benchmark(model, port, max_tokens, runtime_config, question_ids=None, timeout=180):
+    dataset = load_dataset()
+    dataset_version = dataset.get("version", "unknown")
+    questions = dataset["questions"]
+
+    if question_ids:
+        questions = [q for q in questions if q["id"] in question_ids]
+
+    model_slug = model.lower().replace(" ", "-").replace("_", "-")
+    output_path = RESULTS_DIR / model_slug / "raw.json"
+
+    raw_data = build_raw_header(model, port, max_tokens, dataset_version, runtime_config)
+    raw_data["total_questions"] = len(questions)
+
+    base_url = f"http://127.0.0.1:{port}/v1/chat/completions"
+    system_prompt = "You are an AI assistant. ALWAYS respond in English. Do not respond in any other language."
+
+    results = []
+    start_time = time.time()
+
+    print("=" * 70)
+    print(f"  BENCHMARK: {model}")
+    print(f"  Dataset: benchmark_dataset.json v{dataset_version}")
+    print(f"  Questions: {len(questions)}")
+    print("=" * 70)
+    print(f"  Port: {port} | Backend: {runtime_config.get('backend', '?')}")
+    print(f"  Quantization: {runtime_config.get('quantization', '?')} | Context: {runtime_config.get('context_size', 0)}")
+    print(f"  Max tokens: {max_tokens} | Timeout/question: {timeout}s")
+    print("=" * 70)
+    print()
+
+    for i, q in enumerate(questions):
+        qid = q["id"]
+        cat = q["category"]
+        temp = get_temperature(cat)
+        pct = (i + 1) / len(questions) * 100
+
+        bar_len = 30
+        filled = int(bar_len * (i / len(questions)))
+        bar = "█" * filled + "░" * (bar_len - filled)
+
+        print(f"{'─' * 70}")
+        print(f"  [{i+1}/{len(questions)}] {pct:.0f}% | {bar}")
+        print(f"  Question: {qid}")
+        print(f"  Category: {cat:<12} | Temperature: {temp}")
+        print(f"{'─' * 70}")
+
+        messages = [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": q["prompt"] + " Answer in English only."}
+        ]
+
+        response_text = ""
+        metrics = {}
+        error = None
+        data = None
+
+        for attempt in range(3):
+            try:
+                data = generate_response(base_url, model, messages, temp, max_tokens, timeout=timeout)
+                response_text = data.get("choices", [{}])[0].get("message", {}).get("content", "")
+                if response_text and response_text.strip():
+                    metrics = extract_metrics(data)
                     break
                 else:
-                    print(f"  -> Empty response, retry {attempt+1}/3...")
+                    print(f"    ↳ Empty response, retry {attempt+1}/3...")
                     time.sleep(1)
-        except Exception as e:
-            print(f"  -> Attempt {attempt+1} ERROR: {str(e)[:80]}")
-            time.sleep(2)
-    
-    tok_s = data.get("timings", {}).get("predicted_per_second", 0) if data else 0
-    if tok_s: gen_times.append(tok_s)
-    score = evaluate(response, q["id"], q["cat"], q["max"])
-    results.append({"id": q["id"], "cat": q["cat"], "score": score, "max": q["max"], "response": response[:150], "tok_s": tok_s})
-    print(f"  -> Score: {score}/{q['max']} | Gen: {tok_s:.1f} tok/s")
-    print(f"  Response: {response[:150]}")
-    time.sleep(2)
+            except Exception as e:
+                error = str(e)[:120]
+                print(f"    ↳ Attempt {attempt+1} TIMEOUT")
+                time.sleep(2)
 
-# Calculate scores
-cats = {}
-for r in results:
-    c = r["cat"]
-    if c not in cats: cats[c] = {"score": 0, "max": 0}
-    cats[c]["score"] += r["score"]
-    cats[c]["max"] += r["max"]
+        if not response_text.strip() and data:
+            response_text = data.get("choices", [{}])[0].get("message", {}).get("content", "")
+            if response_text:
+                metrics = extract_metrics(data)
+                error = error or "Partial response after timeout"
 
-weights = {"Logic": 0.25, "Knowledge": 0.20, "Reading": 0.15, "Math": 0.20, "Code": 0.15, "Creative": 0.05}
+        if not response_text.strip():
+            error = error or "Empty response after 3 attempts"
 
-# Print summary
-print("\n" + "=" * 60)
-print("RESULTS")
-print("=" * 60)
-print()
-print("Category        Score   Max")
-print("-" * 35)
-for c in weights:
-    if c in cats:
-        s, m = cats[c]["score"], cats[c]["max"]
-        pct = (s/m)*100 if m > 0 else 0
-        print(f"{c:<15} {s:<7} {m}")
+        result = {
+            "id": qid,
+            "category": cat,
+            "difficulty": q.get("difficulty", "unknown"),
+            "prompt": q["prompt"],
+            "reference_answer": q.get("reference_answer", ""),
+            "response": response_text,
+            "temperature": temp,
+            "metrics": metrics,
+            "error": error
+        }
 
-overall = sum(cats[c]["score"]/cats[c]["max"]*weights[c]*100 for c in weights if c in cats)
-print(f"\nGENERAL: {overall:.1f}/100")
+        results.append(result)
 
-if gen_times:
-    print(f"\nGeneration speed: {sum(gen_times)/len(gen_times):.1f} tok/s (avg)")
+        tok_s = metrics.get("tokens_per_second", 0)
+        chars = len(response_text)
+        status = "OK" if not error else "ERR"
+        icon = "✓" if status == "OK" else "✗"
+        total_q = len(results)
+        elapsed = time.time() - start_time
+        eta = (elapsed / total_q) * (len(questions) - total_q) if total_q > 0 else 0
 
-# Determine recommended use cases based on scores
-def get_recommendations(cats):
-    recommendations = []
-    best_cat = max(cats, key=lambda c: cats[c]["score"]/cats[c]["max"])
-    if cats[best_cat]["score"]/cats[best_cat]["max"] >= 0.5:
-        recommendations.append(f"- {best_cat}: Ideal for tasks requiring {best_cat.lower()} (score {cats[best_cat]['score']}/{cats[best_cat]['max']})")
-    worst_cat = min(cats, key=lambda c: cats[c]["score"]/cats[c]["max"])
-    if cats[worst_cat]["score"]/cats[worst_cat]["max"] < 0.25:
-        recommendations.append(f"- Avoid {worst_cat.lower()} tasks (score {cats[worst_cat]['score']}/{cats[worst_cat]['max']} too low)")
-    general = sum(c["score"] for c in cats.values()) / sum(c["max"] for c in cats.values()) * 100
-    if general >= 70:
-        recommendations.append("- Strong all-around model suitable for general-purpose tasks")
-    elif general >= 40:
-        recommendations.append("- Lightweight model best for simple tasks; not ideal for complex reasoning")
-    else:
-        recommendations.append("- Very limited capabilities; suitable only for very basic tasks")
-    if cats["Reading"]["score"]/cats["Reading"]["max"] >= 0.5:
-        recommendations.append("- Good at document understanding and reading comprehension")
-    if cats["Code"]["score"]/cats["Code"]["max"] >= 0.4:
-        recommendations.append("- Can handle basic code generation and debugging")
-    if cats["Math"]["score"]/cats["Math"]["max"] < 0.25:
-        recommendations.append("- Not recommended for mathematical reasoning tasks")
-    return recommendations
+        print(f"    {icon} {status:<4} | {tok_s:6.1f} tok/s | {chars:5} chars | {metrics.get('prompt_tokens', 0):>4}→{metrics.get('completion_tokens', 0):>4} tok | {elapsed:.0f}s elapsed | ETA {eta:.0f}s")
 
-print()
-print("=" * 60)
-print("USOS RECOMENDADOS PARA ESTE MODELO")
-print("=" * 60)
-recs = get_recommendations(cats)
-for r in recs:
-    print(r)
-print("=" * 60)
+        raw_data["questions"] = results
+        raw_data["timestamp_end"] = time.strftime("%Y-%m-%dT%H:%M:%S")
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        save_incremental(output_path, raw_data)
 
-# Save results
-output = {
-    "model": MODEL,
-    "date": time.strftime("%Y-%m-%d %H:%M"),
-    "scores_by_category": {c: {"score": cats[c]["score"], "max": cats[c]["max"], "pct": (cats[c]["score"]/cats[c]["max"]*100) if cats[c]["max"] > 0 else 0} for c in cats},
-    "general_score": overall,
-    "speed_avg_gen_tok_s": sum(gen_times)/len(gen_times) if gen_times else 0,
-    "recommended_uses": recs,
-    "details": results
-}
-with open(r"D:\llama.cpp\benchmarks\benchmark_gemma4_e4b.json", "w") as f:
-    json.dump(output, f, indent=2, ensure_ascii=False)
+        time.sleep(2)
 
-print(f"\nSaved: benchmarks/benchmark_gemma4_e4b.json")
+    elapsed = time.time() - start_time
+    ok_count = sum(1 for r in results if not r.get("error"))
+    err_count = len(results) - ok_count
+
+    print()
+    print("=" * 70)
+    print(f"  BENCHMARK COMPLETE")
+    print(f"  Time: {elapsed:.0f}s | OK: {ok_count} | ERR: {err_count}")
+    print(f"  Saved: {output_path}")
+    print("=" * 70)
+
+    return output_path
+
+
+def main():
+    parser = argparse.ArgumentParser(description="Run LLM benchmark")
+    parser.add_argument("--model", default="Agents-A1-4B", help="Model name")
+    parser.add_argument("--port", type=int, default=18765, help="llama-server port")
+    parser.add_argument("--max-tokens", type=int, default=-1, help="Max tokens per response (-1 = unlimited)")
+    parser.add_argument("--timeout", type=int, default=180, help="Timeout per question in seconds")
+    parser.add_argument("--questions", nargs="*", help="Specific question IDs to run (default: all)")
+    parser.add_argument("--backend", default="llama.cpp", help="Backend name (llama.cpp, vllm, etc.)")
+    parser.add_argument("--context-size", type=int, default=0, help="Context size")
+    parser.add_argument("--quantization", default="unknown", help="Quantization (Q4_K_M, Q8_0, etc.)")
+    parser.add_argument("--gpu-layers", default="unknown", help="GPU layers (all, number, etc.)")
+    parser.add_argument("--batch-size", type=int, default=0, help="Batch size")
+    args = parser.parse_args()
+
+    runtime_config = {
+        "backend": args.backend,
+        "context_size": args.context_size,
+        "quantization": args.quantization,
+        "gpu_layers": args.gpu_layers,
+        "batch_size": args.batch_size,
+    }
+
+    run_benchmark(args.model, args.port, args.max_tokens, runtime_config, args.questions, timeout=args.timeout)
+
+
+if __name__ == "__main__":
+    main()
