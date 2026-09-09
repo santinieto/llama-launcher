@@ -1,29 +1,25 @@
-name: Qwen 3.5 9B (Q4_K_M)
-description: Qwen 3.5 9B
+name: Qwen 3.5 9B (nomtp UD-Q2_K_XL)
+description: Qwen 3.5 9B - Sin MTP UD-Q2_K_XL
 backend:
   type: llama.cpp
 model:
-  file: Qwen3.5-9B-Q4_K_M.gguf
+  file: nomtp/Qwen3.5-9B-UD-Q2_K_XL.gguf
   format: gguf
 server:
   host: 127.0.0.1
   port: 18765
-  alias: Qwen_3_5_9B_Q4_K_M
+  alias: Qwen3.5-9B-nomtp-UD-Q2_K_XL
 hardware:
   gpu_layers: all
-  context_size: 65535
+  context_size: 65536
   batch_size: 2048
   micro_batch: 256
 cache:
-  type_k: q8_0
-  type_v: q8_0
-  type_k_draft: q8_0
-  type_v_draft: q8_0
+  type_k: q4_0
+  type_v: q4_0
   unified: true
 speculative:
-  enabled: true
-  spec_type: draft-mtp
-  draft_n_max: 3
+  enabled: false
 sampling:
   temperature: 0.6
   top_p: 0.95
