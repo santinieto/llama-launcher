@@ -301,6 +301,12 @@ El KV cache non-SWA es más pequeño porque solo 4 layers no usan SWA. Las 20 ca
 
 4. **VRAM ajustada**: Con 65K context y vision, la VRAM queda en ~800 MiB libre. Reducir a 32K si se necesita más margen.
 
+5. **`-fa off`**: La doc oficial recomienda `-fa off`, no `-fa on`
+
+6. **Thinking mode**: Habilitar con `<|think|>` en system prompt
+
+7. **Razonamiento**: Puede devolver respuesta vacía en ciertos prompts
+
 ## Troubleshooting
 
 ### OOM al cargar
