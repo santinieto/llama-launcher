@@ -1,31 +1,31 @@
 {
   "model": "Gemma4-E4B",
-  "date": "2026-09-08 18:28",
+  "date": "2026-09-08 19:00",
   "scores_by_category": {
     "Logic": {
-      "score": 1.5,
+      "score": 0.0,
       "max": 25,
-      "pct": 6.0
+      "pct": 0.0
     },
     "Knowledge": {
-      "score": 2.0,
+      "score": 4.0,
       "max": 25,
-      "pct": 8.0
+      "pct": 16.0
     },
     "Reading": {
-      "score": 3.0,
+      "score": 4.5,
       "max": 25,
-      "pct": 12.0
+      "pct": 18.0
     },
     "Math": {
-      "score": 1.0,
+      "score": 0.0,
       "max": 25,
-      "pct": 4.0
+      "pct": 0.0
     },
     "Code": {
-      "score": 2.0,
+      "score": 0.0,
       "max": 25,
-      "pct": 8.0
+      "pct": 0.0
     },
     "Creative": {
       "score": 0.0,
@@ -33,16 +33,21 @@
       "pct": 0.0
     }
   },
-  "general_score": 6.9,
-  "speed_avg_gen_tok_s": 118.68939780302635,
+  "general_score": 5.9,
+  "speed_avg_gen_tok_s": 107.31464780886735,
+  "recommended_uses": [
+    "- Avoid logic tasks (score 0.0/25 too low)",
+    "- Very limited capabilities; suitable only for very basic tasks",
+    "- Not recommended for mathematical reasoning tasks"
+  ],
   "details": [
     {
       "id": "logic_1",
       "cat": "Logic",
-      "score": 1.0,
+      "score": 0.0,
       "max": 5,
-      "response": "Sí, la respuesta es **sí**, los gatos necesitan agua.\n\nEste es un ejemplo clásico de un argumento lógico llamado **silogismo**, y se resuelve aplicand",
-      "tok_s": 121.658742594725
+      "response": "This is a classic age problem that can be solved using a system of linear equations.\n\n**1. Define Variables**\n\nLet $S$ be the son's current age.\nLet $",
+      "tok_s": 124.55382772133889
     },
     {
       "id": "logic_2",
@@ -50,7 +55,7 @@
       "score": 0.0,
       "max": 5,
       "response": "",
-      "tok_s": 141.5939047087209
+      "tok_s": 109.06059704010852
     },
     {
       "id": "logic_3",
@@ -58,15 +63,15 @@
       "score": 0.0,
       "max": 5,
       "response": "",
-      "tok_s": 131.18336332060582
+      "tok_s": 112.52358147000444
     },
     {
       "id": "logic_4",
       "cat": "Logic",
-      "score": 0.5,
+      "score": 0.0,
       "max": 5,
-      "response": "Quedas en **primera posición (1er lugar)**.\n\n### Explicación\n\nLa clave está en la acción de **adelantar** (o \"sobrepasar\").\n\n1.  **Posición Inicial:**",
-      "tok_s": 111.4354177041624
+      "response": "The rule for the sequence is: $a_n = 2(a_{n-1}) - 3$.\nThe first term ($a_1$) is 5.\n\n**Step 1: Find the second term ($a_2$)**\n$",
+      "tok_s": 123.40641268192553
     },
     {
       "id": "logic_5",
@@ -74,127 +79,127 @@
       "score": 0.0,
       "max": 5,
       "response": "",
-      "tok_s": 117.54374558916506
+      "tok_s": 107.8508968915167
     },
     {
       "id": "knowledge_1",
       "cat": "Knowledge",
-      "score": 1.0,
+      "score": 0.5,
       "max": 5,
-      "response": "La capital de Australia es **Canberra**.\n\nLos humanos llegaron a la Luna en el año **1969**.",
-      "tok_s": 121.10444062894635
+      "response": "Nuclear fission and nuclear fusion are both powerful processes involving the atomic nucleus, but they operate on fundamentally different physical prin",
+      "tok_s": 96.23555068527811
     },
     {
       "id": "knowledge_2",
       "cat": "Knowledge",
-      "score": 0.0,
+      "score": 0.5,
       "max": 5,
-      "response": "La fotosíntesis es el proceso que utilizan las plantas para fabricar su propio alimento. Para hacerlo, capturan la energía del sol, el agua y el dióxi",
-      "tok_s": 120.05790655756918
+      "response": "TCP (Transmission Control Protocol) and UDP (User Datagram Protocol) are both fundamental protocols used for sending data over the internet, but they ",
+      "tok_s": 96.34136429025278
     },
     {
       "id": "knowledge_3",
       "cat": "Knowledge",
       "score": 1.0,
       "max": 5,
-      "response": "**Don Quijote de la Mancha** fue escrito por **Miguel de Cervantes**.\n\nAquí tienes la información detallada:\n\n*   **¿De qué país era?** Era de **Españ",
-      "tok_s": 121.21684157178203
+      "response": "The Heisenberg Uncertainty Principle is a fundamental concept in quantum mechanics that dictates a limit to the precision with which certain pairs of ",
+      "tok_s": 95.50807713148093
     },
     {
       "id": "knowledge_4",
       "cat": "Knowledge",
-      "score": 0.0,
+      "score": 1.0,
       "max": 5,
-      "response": "Los tres estados fundamentales de la materia son:\n\n### 1. Sólido\n* **Características:** Tiene una forma y un volumen definidos y constantes. Sus partí",
-      "tok_s": 106.7125058091801
+      "response": "The differences between supervised, unsupervised, and reinforcement learning lie fundamentally in the type of data they use and the goal they are tryi",
+      "tok_s": 99.78944227700708
     },
     {
       "id": "knowledge_5",
       "cat": "Knowledge",
-      "score": 0.0,
+      "score": 1.0,
       "max": 5,
-      "response": "",
-      "tok_s": 109.41869072971522
+      "response": "The primary differences between mitosis and meiosis lie in their purpose, the number of divisions, the types of genetic variation they produce, and th",
+      "tok_s": 102.87030837178773
     },
     {
       "id": "reading_1",
       "cat": "Reading",
-      "score": 1.0,
+      "score": 0.5,
       "max": 5,
-      "response": "En 2022 tenían **15 empleados**.\nEl producto estrella generó **2M** (2 millones).",
-      "tok_s": 135.3492319071493
+      "response": "Based on the passage, we can infer that during this period, rapid economic development did not necessarily correlate with improved social welfare. Whi",
+      "tok_s": 101.33469312871014
     },
     {
       "id": "reading_2",
       "cat": "Reading",
       "score": 1.0,
       "max": 5,
-      "response": "La inteligencia artificial está transformando múltiples industrias al permitir que algoritmos de Machine Learning personalicen procesos que antes eran",
-      "tok_s": 113.44897296792918
+      "response": "The two main quantum phenomena described are **superposition** and **entanglement**.\n\nThe practical advantage they theoretically provide is the abilit",
+      "tok_s": 94.68159930747174
     },
     {
       "id": "reading_3",
       "cat": "Reading",
-      "score": 0.0,
+      "score": 1.0,
       "max": 5,
-      "response": "De este enunciado, podemos hacer varias inferencias lógicas sobre el estado de María, aunque siempre debemos recordar que una inferencia es una",
-      "tok_s": 105.89261639858574
+      "response": "The primary strategic objective of the Marshall Plan was to prevent the spread of communism by stabilizing Western Europe.\n\nIts secondary humanitarian",
+      "tok_s": 109.47748143404712
     },
     {
       "id": "reading_4",
       "cat": "Reading",
       "score": 1.0,
       "max": 5,
-      "response": "La idea principal del texto es **describir las características fundamentales de Python y destacar que su sintaxis clara lo hace una excelente opción p",
-      "tok_s": 97.87216252288817
+      "response": "The three main components of the CRISPR-Cas9 system mentioned in the passage are:\n\n1.  **Guide RNA:** Used to locate the target DNA sequence.\n2.  **Ca",
+      "tok_s": 106.99359851480351
     },
     {
       "id": "reading_5",
       "cat": "Reading",
-      "score": 0.0,
+      "score": 1.0,
       "max": 5,
-      "response": "",
-      "tok_s": 92.65243879229494
+      "response": "Based on the passage provided:\n\nThe evidence that initially led to the dark matter hypothesis was the observation by Fritz Zwicky that galaxies in the",
+      "tok_s": 102.06694773599556
     },
     {
       "id": "math_1",
       "cat": "Math",
       "score": 0.0,
       "max": 5,
-      "response": "Para calcular la expresión $15 \\times 7 + 23 - 8 / 2$, debemos seguir el orden de las operaciones (PEMDAS/BODMAS), donde la multiplicación y la divisi",
-      "tok_s": 129.99534465569337
+      "response": "",
+      "tok_s": 118.03887050757423
     },
     {
       "id": "math_2",
       "cat": "Math",
       "score": 0.0,
       "max": 5,
-      "response": "Para resolver este problema, vamos a calcular primero el monto del descuento (el ahorro) y luego el precio final que pagarás.\n\n### 1. Cálculo del Ahor",
-      "tok_s": 127.94123830709384
+      "response": "",
+      "tok_s": 123.61576356144198
     },
     {
       "id": "math_3",
       "cat": "Math",
       "score": 0.0,
       "max": 5,
-      "response": "Aquí tienes la resolución de ambos problemas:\n\n***\n\n### 1. Si $x + 5 = 12$, ¿cuánto es $x$?\n\nPara resolver esta ecuación, debemos despejar la $x$.",
-      "tok_s": 125.1451144124788
+      "response": "",
+      "tok_s": 0
     },
     {
       "id": "math_4",
       "cat": "Math",
       "score": 0.0,
       "max": 5,
-      "response": "Claro,",
-      "tok_s": 128.33860404634387
+      "response": "",
+      "tok_s": 0
     },
     {
       "id": "math_5",
       "cat": "Math",
-      "score": 1.0,
+      "score": 0.0,
       "max": 5,
-      "response": "Para resolver este problema, necesitamos entender que la cantidad de trabajo total (pintar la pared) debe ser la misma. El trabajo total se puede medi",
-      "tok_s": 116.95977959579312
+      "response": "",
+      "tok_s": 0
     },
     {
       "id": "code_1",
@@ -202,31 +207,31 @@
       "score": 0.0,
       "max": 5,
       "response": "",
-      "tok_s": 115.68514352376485
+      "tok_s": 0
     },
     {
       "id": "code_2",
       "cat": "Code",
-      "score": 1.0,
+      "score": 0.0,
       "max": 5,
-      "response": "Este código define una función llamada `foo` que calcula el **número de Fibonacci** para un entero dado $n$.\n\nEn términos sencillos, esta función devu",
-      "tok_s": 120.07959424166609
+      "response": "",
+      "tok_s": 0
     },
     {
       "id": "code_3",
       "cat": "Code",
-      "score": 1.0,
+      "score": 0.0,
       "max": 5,
-      "response": "El error es de **sintaxis** de Python. Necesitas dos cosas: un **punto y coma (o dos puntos)** al final de la línea del bucle, y la **sangría (indenta",
-      "tok_s": 124.64118824266414
+      "response": "",
+      "tok_s": 0
     },
     {
       "id": "code_4",
       "cat": "Code",
       "score": 0.0,
       "max": 5,
-      "response": "Esta es una pregunta fundamental en Python. Aunque tanto una **lista (`list`)** como una **tupla (`tuple`)** se utilizan para almacenar colecciones or",
-      "tok_s": 117.02560773579134
+      "response": "",
+      "tok_s": 0
     },
     {
       "id": "code_5",
@@ -234,7 +239,7 @@
       "score": 0.0,
       "max": 5,
       "response": "",
-      "tok_s": 123.93635781097097
+      "tok_s": 0
     },
     {
       "id": "creative_1",
@@ -242,7 +247,7 @@
       "score": 0.0,
       "max": 3,
       "response": "",
-      "tok_s": 116.27113122956372
+      "tok_s": 0
     },
     {
       "id": "creative_2",
@@ -250,7 +255,7 @@
       "score": 0.0,
       "max": 3,
       "response": "",
-      "tok_s": 108.01307672543314
+      "tok_s": 0
     },
     {
       "id": "creative_3",
@@ -258,7 +263,7 @@
       "score": 0.0,
       "max": 3,
       "response": "",
-      "tok_s": 122.12997615406096
+      "tok_s": 0
     }
   ]
 }

@@ -57,7 +57,7 @@ def evaluate(response, qid, cat, mx):
             return 1.0 if any(x in rl for x in ["10", "ten"]) and ("years" in rl or "old" in rl) else 0.5 if any(x in rl for x in ["10", "ten"]) else 0.0
         if qid == "logic_2":
             # minimum picks = 1, pick from mixed box C
-            return 1.0 if ("1" in rl or "one" in rl) and ("c" in rl or "mixed" in rl or "combination" in rl) else 0.5 if ("1" in rl or "one" in rl) else 0.0
+            return 1.0 if ("1" in rl or "one" in rl) and ("c" in rl or "mixed" in rl or "combination" in rl or "mix" in rl or "box c" in rl or "box labeled" in rl) else 0.5 if ("1" in rl or "one" in rl) else 0.0
         if qid == "logic_3":
             # Alice > Bob, Carol > Alice, Bob > Dave, Dave > Eve, Carol not first
             # Carol > Alice > Bob > Dave > Eve, Carol not first -> contradiction
@@ -68,7 +68,7 @@ def evaluate(response, qid, cat, mx):
             return 1.0 if "19" in rl else 0.0
         if qid == "logic_5":
             # Some logical thinkers are poets doesn't mean all poets or some mathematicians
-            return 1.0 if "(b)" in rl or "b" in rl else 0.0
+            return 1.0 if "(b)" in rl or "some poets are logical thinkers" in rl or "poets are logical" in rl else 0.5 if "b" in rl else 0.0
     if cat == "Knowledge":
         if qid == "knowledge_1":
             return 1.0 if ("fission" in rl or "fusion" in rl) and ("commercial" in rl or "electricity" in rl) else 0.5 if any(w in rl for w in ["fission", "fusion", "nuclear"]) else 0.0
@@ -82,7 +82,7 @@ def evaluate(response, qid, cat, mx):
             return 1.0 if ("mitosis" in rl or "meiosis" in rl) and ("daughter" in rl or "ploidy" in rl or "haploid" in rl) else 0.5 if any(w in rl for w in ["mitosis", "meiosis"]) else 0.0
     if cat == "Reading":
         if qid == "reading_1":
-            return 1.0 if ("social" in rl or "welfare" in rl or "upheaval" in rl or "class" in rl) and "inference" in rl or True else 0.5
+            return 1.0 if ("social" in rl or "welfare" in rl or "upheaval" in rl or "class" in rl) and "inference" in rl else 0.5 if any(w in rl for w in ["social", "welfare", "upheaval", "class", "inference"]) else 0.0
         if qid == "reading_2":
             return 1.0 if ("superposition" in rl or "entanglement" in rl) and "exponentially" in rl else 0.5 if any(w in rl for w in ["superposition", "entanglement"]) else 0.0
         if qid == "reading_3":
@@ -135,27 +135,42 @@ print()
 
 for i, q in enumerate(benchmarks):
     print(f"[{i+1}/{len(benchmarks)}] {q['id']} ({q['cat']})")
+    print(f"  Prompt: {q['prompt'][:80]}...")
+    SYSTEM_PROMPT = "You are an AI assistant. ALWAYS respond in English. Do not respond in any other language."
     body = {
         "model": MODEL,
-        "messages": [{"role": "user", "content": q["prompt"]}],
+        "messages": [
+            {"role": "system", "content": SYSTEM_PROMPT},
+            {"role": "user", "content": q["prompt"] + " Answer in English only."}
+        ],
         "temperature": 0.7,
         "max_tokens": 500,
         "stream": False
     }
-    try:
-        req = urllib.request.Request(BASE_URL, data=json.dumps(body).encode(), headers={"Content-Type": "application/json"})
-        with urllib.request.urlopen(req, timeout=120) as resp:
-            data = json.loads(resp.read())
-            response = data["choices"][0]["message"]["content"]
-            tok_s = data.get("timings", {}).get("predicted_per_second", 0)
-            if tok_s: gen_times.append(tok_s)
-            score = evaluate(response, q["id"], q["cat"], q["max"])
-            results.append({"id": q["id"], "cat": q["cat"], "score": score, "max": q["max"], "response": response[:150], "tok_s": tok_s})
-            print(f"  -> Score: {score}/{q['max']} | Gen: {tok_s:.1f} tok/s")
-    except Exception as e:
-        results.append({"id": q["id"], "cat": q["cat"], "score": 0, "max": q["max"], "response": f"ERROR: {str(e)[:100]}", "tok_s": 0})
-        print(f"  -> ERROR: {str(e)[:80]}")
-    time.sleep(0.5)
+    response = ""
+    data = None
+    for attempt in range(3):
+        try:
+            req = urllib.request.Request(BASE_URL, data=json.dumps(body).encode(), headers={"Content-Type": "application/json"})
+            with urllib.request.urlopen(req, timeout=120) as resp:
+                data = json.loads(resp.read())
+                response = data["choices"][0]["message"]["content"]
+                if response and response.strip():
+                    break
+                else:
+                    print(f"  -> Empty response, retry {attempt+1}/3...")
+                    time.sleep(1)
+        except Exception as e:
+            print(f"  -> Attempt {attempt+1} ERROR: {str(e)[:80]}")
+            time.sleep(2)
+    
+    tok_s = data.get("timings", {}).get("predicted_per_second", 0) if data else 0
+    if tok_s: gen_times.append(tok_s)
+    score = evaluate(response, q["id"], q["cat"], q["max"])
+    results.append({"id": q["id"], "cat": q["cat"], "score": score, "max": q["max"], "response": response[:150], "tok_s": tok_s})
+    print(f"  -> Score: {score}/{q['max']} | Gen: {tok_s:.1f} tok/s")
+    print(f"  Response: {response[:150]}")
+    time.sleep(2)
 
 # Calculate scores
 cats = {}
@@ -186,6 +201,39 @@ print(f"\nGENERAL: {overall:.1f}/100")
 if gen_times:
     print(f"\nGeneration speed: {sum(gen_times)/len(gen_times):.1f} tok/s (avg)")
 
+# Determine recommended use cases based on scores
+def get_recommendations(cats):
+    recommendations = []
+    best_cat = max(cats, key=lambda c: cats[c]["score"]/cats[c]["max"])
+    if cats[best_cat]["score"]/cats[best_cat]["max"] >= 0.5:
+        recommendations.append(f"- {best_cat}: Ideal for tasks requiring {best_cat.lower()} (score {cats[best_cat]['score']}/{cats[best_cat]['max']})")
+    worst_cat = min(cats, key=lambda c: cats[c]["score"]/cats[c]["max"])
+    if cats[worst_cat]["score"]/cats[worst_cat]["max"] < 0.25:
+        recommendations.append(f"- Avoid {worst_cat.lower()} tasks (score {cats[worst_cat]['score']}/{cats[worst_cat]['max']} too low)")
+    general = sum(c["score"] for c in cats.values()) / sum(c["max"] for c in cats.values()) * 100
+    if general >= 70:
+        recommendations.append("- Strong all-around model suitable for general-purpose tasks")
+    elif general >= 40:
+        recommendations.append("- Lightweight model best for simple tasks; not ideal for complex reasoning")
+    else:
+        recommendations.append("- Very limited capabilities; suitable only for very basic tasks")
+    if cats["Reading"]["score"]/cats["Reading"]["max"] >= 0.5:
+        recommendations.append("- Good at document understanding and reading comprehension")
+    if cats["Code"]["score"]/cats["Code"]["max"] >= 0.4:
+        recommendations.append("- Can handle basic code generation and debugging")
+    if cats["Math"]["score"]/cats["Math"]["max"] < 0.25:
+        recommendations.append("- Not recommended for mathematical reasoning tasks")
+    return recommendations
+
+print()
+print("=" * 60)
+print("USOS RECOMENDADOS PARA ESTE MODELO")
+print("=" * 60)
+recs = get_recommendations(cats)
+for r in recs:
+    print(r)
+print("=" * 60)
+
 # Save results
 output = {
     "model": MODEL,
@@ -193,6 +241,7 @@ output = {
     "scores_by_category": {c: {"score": cats[c]["score"], "max": cats[c]["max"], "pct": (cats[c]["score"]/cats[c]["max"]*100) if cats[c]["max"] > 0 else 0} for c in cats},
     "general_score": overall,
     "speed_avg_gen_tok_s": sum(gen_times)/len(gen_times) if gen_times else 0,
+    "recommended_uses": recs,
     "details": results
 }
 with open(r"D:\llama.cpp\benchmarks\benchmark_gemma4_e4b.json", "w") as f:

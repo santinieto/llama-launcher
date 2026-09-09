@@ -354,9 +354,12 @@ Para cada modelo/variante seleccionado:
 2. Ejecutar el script `benchmarks/run_benchmark.py` (Python 3) que llama a la API
 3. El script contiene 28 preguntas en inglés en 6 categorias
 4. Cada pregunta se envia via API con temperature=0.7 y max_tokens=500
-5. Capturar respuestas + metricas (tok/s)
-6. Evaluar respuestas con los criterios del script
-7. Calcular score por categoria
+5. **Durante ejecución**: se muestra el test actual + prompt + respuesta del modelo en tiempo real
+6. Capturar respuestas + metricas (tok/s)
+7. Evaluar respuestas con los criterios del script
+8. Calcular score por categoria
+9. Al finalizar, mostrar seccion de **Usos Recomendados** para el modelo
+10. Agregar `time.sleep(2)` entre preguntas para evitar sobrecarga del servidor
 
 ### Script de ejecucion
 
@@ -453,6 +456,17 @@ Ver seccion 5.
 ## Recomendacion
 
 <basado en el score y las categorias, recomendar para que casos de uso es ideal este modelo>
+
+## Usos Recomendados
+
+Basado en los scores por categoria, el script genera automaticamente recomendaciones:
+
+- **Mejor categoría**: la que tiene mayor score relativo (score/max)
+- **Evitar**: categorías con score < 25%
+- **General**: score >= 70% = fuerte para tareas generales, 40-70% = ligero para tareas simples, < 40% = muy limitado
+- **Reading >= 50%**: bueno para comprension lectora
+- **Code >= 40%**: puede manejar codigo basico
+- **Math < 25%**: no recomendado para matematicas
 ```
 
 ## 5.2 Reporte Comparativo (multiples modelos)

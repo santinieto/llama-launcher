@@ -21,6 +21,10 @@ logs/*
 !logs/.gitkeep
 *.log
 
+# Resultados de benchmarks (generados por skill benchmark-models)
+benchmarks/*
+!benchmarks/.gitkeep
+
 # Binarios compilados de llama.cpp (1GB+ cuda dlls) - descargar aparte según README
 llama.cpp/*.dll
 llama.cpp/*.exe
